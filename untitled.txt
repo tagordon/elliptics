@@ -1,0 +1,30 @@
+if (y > 1.0){
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        N = 5;
+    }
+    else if (y > 0.8){
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        N =4;
+    }
+    else if (y > 0.4){
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        N = 3;
+    }
+    else if (y > 0.2){
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        N = 2;
+    }
+    else if (y > 0.05){
+        y = y / ((1 + sqrt(1 - y)) * (1 + sqrt(1 - m*y)));
+        N = 1;
+    }
