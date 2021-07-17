@@ -58,6 +58,11 @@ subroutine el1(x, kc, e, j) bind(C, name="el1")
     
     do i=1,j,1
     
+        if (kc(i) == 0.d0) then
+            e(i) = log(x(i) + 1.d0 / cos(atan(x(i))))
+            goto 2
+        end if
+    
         yi = y(i)
         ei = e(i)
         mi = m(i)
@@ -90,7 +95,7 @@ subroutine el1(x, kc, e, j) bind(C, name="el1")
         else
             e(i) = ei
         end if
-    enddo
+2   end do
     
     return
 end
@@ -125,6 +130,11 @@ subroutine el2(x, kc, a, b, e, j) bind(C, name="el2")
     m = 1.d0
     
     do i=1,j,1
+    
+        if (kc(i) == 0.d0) then
+            e(i) = sin(atan(x(i)))
+            goto 2
+        end if
     
         ai = a(i)
         bi = b(i)
@@ -174,7 +184,7 @@ subroutine el2(x, kc, a, b, e, j) bind(C, name="el2")
         else
             e(i) = ei + ci * zi
         end if
-    enddo
+2   enddo
     
     return
 end
