@@ -1,3 +1,6 @@
+! These routines might be useful for implementing a scipy version of the bulirsch elliptic integrals
+! Use ellip.f90 instead sfor the photodynamics code
+
 module bulirsch
 use iso_c_binding
 implicit none
