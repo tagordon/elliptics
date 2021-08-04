@@ -9,6 +9,7 @@ void fkp(double phi[], double n[], double mc[], double *f, double *e, double *p,
 void integrate_linear(double *s1, double *s2, double *r, double *b, double *f);
 void f_burl(double phi[], double m[], double *e, int *j);
 void e_burl(double phi[], double m[], double *e, int *j);
+void p_burl(double phi[], double n[], double m[], double *e, int *j);
 
 int main(){
     return 0;
@@ -20,6 +21,10 @@ void F(double *phi, double *m, double *e, int j){
 
 void E(double *phi, double *m, double *e, int j){
     e_burl(phi, m, e, &j);
+}
+
+void P(double *phi, double *n, double *m, double *e, int j){
+    p_burl(phi, n, m, e, &j);
 }
 
 double integrate_along_curve(double s1, double s2, double r, double b){
