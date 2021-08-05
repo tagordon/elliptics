@@ -3,8 +3,6 @@ implicit none
 
 contains
 
-! el1 is fixed but untested, el2 and el3 haven't been modified for scalars yet. 
-
 subroutine el1(x, kc, e)
 
     integer :: j
@@ -12,7 +10,6 @@ subroutine el1(x, kc, e)
     real, intent(out) :: e
     
     real*8 :: g, m, y
-    !real*8 :: yi, ei, mi, kci, gi, xi
     real*8 :: D = 8
     real*8 :: ca, cb
     real*8 :: pi = 3.1415926535897932384626433832795
@@ -58,14 +55,12 @@ subroutine el1(x, kc, e)
 2 return
 end
 
-subroutine el2(x, kc, a, b, e, j)
+subroutine el2(x, kc, a, b, e)
 
-    integer (c_int), bind(C) :: j
-    real (c_double), bind(C) :: x(j), kc(j), a(j), b(j)
-    real (c_double), bind(C), dimension(j), intent(out) :: e
+    real :: x, kc, a, b
+    real intent(out) :: e
     
-    real*8 :: c(j), dd(j), f(j), g(j), ik(j), m(j), p(j), y(j), z(j)
-    real*8 :: ai, bi, ci, di, fi, iki, ppi, yi, zi, ei, mi, kci, gi, xi
+    real*8 :: c, dd, f, g, ik, m, p, y, z
     real*8 :: D = 8
     real*8 :: ca, cb
     real*8 :: pi = 3.1415926535897932384626433832795
@@ -86,84 +81,63 @@ subroutine el2(x, kc, a, b, e, j)
     f = 0.d0
     kc = abs(kc)
     m = 1.d0
-    
-    do i=1,j,1
-    
-        if (kc(i) == 0.d0) then
-            e(i) = sin(atan(x(i)))
-            goto 2
-        end if
-    
-        ai = a(i)
-        bi = b(i)
-        ci = c(i)
-        di = dd(i)
-        ppi = p(i)
-        zi = z(i)
-        iki = ik(i)
-        fi = f(i)
-        yi = y(i)
-        ei = e(i)
-        mi = m(i)
-        kci = kc(i)
-        gi = g(i)
-        xi = x(i)
-        l = 0
         
-1       bi = iki * kci + bi
-        ei = mi * kci
-        gi = ei / ppi
-        di = fi * gi + di
-        fi = ci
-        iki = ai
-        ppi = gi + ppi
-        ci = (di / ppi + ci) / 2.d0
-        gi = mi
-        mi = kci + mi
-        ai = (bi / mi + ai) / 2.d0
-        yi = - (ei/yi) + yi
-        if (yi == 0) then
-            yi = sqrt(ei) * cb
-        end if 
-        if (abs(gi - kci) .gt. ca * gi) then
-            kci = 2 * sqrt(ei)
-            l = 2 * l
-            if (yi .lt. 0) then
-                l = l + 1
-            end if 
-            goto 1
-        end if
-        if (yi .lt. 0) then 
+    if (kc == 0.d0) then
+        e = sin(atan(x)
+        goto 2
+    end if
+
+    l = 0
+        
+1   b = ik * kc + b
+    e = m * kc
+    g = e / p
+    d = f * g + d
+    f = c
+    ik = a
+    p = g + p
+    c = (d / p + c) / 2.d0
+    g = m
+    m = kc + m
+    a = (b / m + a) / 2.d0
+    y = - (e/y) + y
+    if (y == 0) then
+        y = sqrt(e) * cb
+    end if 
+    if (abs(g - kc) .gt. ca * g) then
+        kc = 2 * sqrt(e)
+        l = 2 * l
+        if (y .lt. 0) then
             l = l + 1
         end if 
-        ei = (atan(mi/yi) + pi * l) * (ai / mi)
-        if (xi .lt. 0) then
-            e(i) = -ei
-        else
-            e(i) = ei + ci * zi
-        end if
-2   enddo
+        goto 1
+    end if
+    if (y .lt. 0) then 
+        l = l + 1
+    end if 
+    e = (atan(m/y) + pi * l) * (a / m)
+    if (x .lt. 0) then
+        e = -e
+    else
+        e = e + c * z
+    end if
     
-    return
+2 return
 end
 
-subroutine el3(x, kc, p, e, j) bind(C, name="el3")
+subroutine el3(x, kc, p, e) bind(C, name="el3")
 
-    integer (c_int), bind(C) :: j
-    real (c_double), bind(C) :: x(j), kc(j), p(j)
-    real (c_double), bind(C), dimension(j), intent(out) :: e
+    real :: x, kc, p
+    real intent(out) :: e
     
-    real*8 :: am(j), ap(j), c(j), d(j), de(j), f(j), fa(j), g(j)
-    real*8 :: h(j), hh(j), p1(j), pm(j), pz(j), q(j), r(j), s(j) 
-    real*8 :: t(j), u(j), v(j), w(j), y(j), ye(j), z(j), zd(j)
-    real*8 :: ami, api, ci, di, dei, ei, fi, fai, gi, hi, hhi 
-    real*8 :: p1i, pmi, pzi, qi, ri, si, ti, ui, vi, wi, yi, yei, zi, zdi, ppi, xi, kci
+    real*8 :: am, ap, c, d, de, f, fa, g
+    real*8 :: h, hh, p1, pm, pz, q, r, s 
+    real*8 :: t, u, v, w, y, ye, z, zd
     real*8 :: ca, cb
     real*8 :: pi = 3.1415926535897932384626433832795
     real*8 :: ln2 = 0.6931471805599453
     integer :: l, m, n, ND, i, k
-    logical :: bo(j)
-    logical :: bk, boi
+    logical :: bo, bk
     real*8 :: ra(12), rb(12), rr(12)
     
     ca = 1E-6
@@ -172,281 +146,246 @@ subroutine el3(x, kc, p, e, j) bind(C, name="el3")
     
     hh = x * x
     f = p * hh
-    
-    do i=1,j,1
-    
-        ami = am(i)
-        api = ap(i)
-        ci = c(i)
-        di = d(i)
-        dei = de(i)
-        ei = e(i)
-        fi = f(i)
-        fai = fa(i)
-        gi = g(i)
-        hi = h(i)
-        hhi = hh(i)
-        p1i = p1(i)
-        pmi = pm(i)
-        pzi = pz(i)
-        ppi = p(i)
-        qi = q(i)
-        ri = r(i)
-        si = s(i)
-        ti = t(i)
-        ui = u(i)
-        vi = v(i)
-        wi = w(i)
-        xi = x(i)
-        yi = y(i)
-        yei = ye(i)
-        zi = z(i)
-        zdi = zd(i)
-        boi = bo(i)
-        kci = kc(i)
         
-        if (kci == 0.d0) then
-            si = ca / (1.d0 + abs(xi))
-        else
-            si = kci
-        end if
-        ti = si * si
-        pmi = ti * 0.5
-        ei = hhi * ti
-        zi = abs(fi)
-        ri = abs(ppi)
-        hi = 1.d0 + hhi
-        if ((ei .lt. 1.d0) .AND. (zi .lt. 0.1) .AND. (ti .lt. 1.d0) .AND. (ri .lt. 1.d0)) then
-            goto 1
-        end if 
-        wi = 1.d0 + fi
-        if (wi == 0.d0) then
-            goto 4
-        end if
-        if (ppi == 0.d0) then
-            p1i = cb / hhi
-        else
-            p1i = ppi
-        end if
-        si = abs(si)
-        yi = abs(xi)
-        gi = p1i - 1.d0
-        if (gi == 0.d0) then
-            gi = cb
-        end if
-        fi = p1i - ti
-        if (fi == 0.d0) then
-            fi = cb * ti
-        end if 
-        ami = 1.d0 - ti
-        api = 1.d0 + ei
-        ri = p1i * hi
-        fai = gi / (fi * p1i)
-        boi = fai .gt. 0.d0
-        fai = abs(fai)
-        pzi = abs(gi * fi)
-        dei = sqrt(pzi)
-        qi = sqrt(abs(p1i))
-        if (pmi .gt. 0.5) then 
-            pmi = 0.5
-        end if
-        pmi = p1i - pmi
-        if (pmi .ge. 0.d0) then
-            ui = sqrt(ri * api)
-            vi = yi * dei
-            if (gi .lt. 0.d0) then
-                vi = -vi
-            end if
-            di = 1.d0 / qi
-            ci = 1.d0
-        else
-            ui = sqrt(hi * api * pzi)
-            yei = yi * qi
-            vi = ami * yei
-            qi = -dei / gi
-            di = -ami / dei
-            ci = 0.d0
-            pzi = api - ri
-        end if
-        if (boi) then
-            ri = vi / ui
-            zi = 1.d0
-            k = 1
-            if (pmi .lt. 0.d0) then
-                hi = yi * sqrt(hi / (api * fai))
-                hi = 1.d0 / hi - hi
-                zi = hi - ri - ri
-                ri = 2.d0 + ri * hi
-                if (ri == 0.d0) then
-                    ri = cb
-                end if
-                if (zi == 0.d0) then 
-                    zi = hi * cb
-                end if
-                ri = ri / zi
-                zi = ri
-                wi = pzi
-            end if
-            ui = ui / wi
-            vi = vi / wi
-        else
-            ti = ui + abs(vi)
-            bk = .TRUE.
-            if (p1i .lt. 0.d0) then
-                dei = vi / pzi
-                yei = ui * yei
-                yei = yei + yei
-                ui = ti / pzi
-                vi = (-fi - gi * ei) / ti
-                ti = pzi * abs(wi)
-                zi = (hhi * ri * fi - gi * api + yei) / ti
-                yei = yei / ti
-            else
-                dei = vi / wi 
-                yei = 0.d0
-                ui = (ei + p1i) / ti
-                vi = ti / wi
-                zi = 1.d0
-            end if
-            if (si .gt. 1.d0) then
-                hi = ui
-                ui = vi
-                vi = hi
-            end if
-        end if
-        yi = 1.d0 / yi
-        ei = si
-        n = 1
-        ti = 1.d0
-        m = 0
-        l = 0
-3       yi = yi - ei / yi
-        if (yi == 0.d0) then
-            yi = sqrt(ei) * cb
-        end if
-        fi = ci
-        ci = di / qi + ci
-        gi = ei / qi
-        di = fi * gi + di
-        di = di + di
-        qi = gi + qi
-        gi = ti
-        ti = si + ti
-        n = n + n
-        m = m + m
-        if (boi) then 
-            if (zi .lt. 0.d0) then 
-                m = k + m
-            end if 
-            k = int(sign(1.d0, ri))
-            hi = ei / (ui * ui + vi * vi)
-            ui = ui * (1.d0 + hi)
-            vi = vi * (1.d0 - hi)
-        else
-            ri = ui / vi 
-            hi = zi * ri
-            zi = hi * zi
-            hhi = ei / vi
-            if (bk) then
-                dei = dei / ui
-                yei = yei * (hi + 1.d0 / hi) + dei * (1.d0 + ri)
-                dei = dei * (ui - hhi)
-                bk = abs(yei) .lt. 1.d0
-            else
-                k = exponent(zi)
-                zi = fraction(zi)
-                m = m + k
-            end if
-        end if
-        if (abs(gi - si) .gt. ca * gi) then 
-            if (boi) then
-                gi = (1.d0 / ri - ri) * 0.5
-                hhi = ui + vi * gi
-                hi = gi * ui - vi
-                if (hhi == 0.d0) then
-                    hhi = ui * cb
-                end if
-                if (hi == 0) then
-                    hi = vi * cb
-                end if
-                zi = ri * hi
-                ri = hhi / hi
-            else
-                ui = ui + ei / ui
-                vi = vi + hhi
-            end if
-            si = sqrt(ei)
-            si = si + si
-            ei = si * ti
-            l = l + l
-            if (yi .lt. 0.d0) then 
-                l = 1 + l
-            end if 
-            goto 3
-        end if
-        if (yi .lt. 0.d0) then
-            l = 1 + l
-        end if
-        ei = atan(ti / yi) + pi * l
-        ei = ei * (ci * ti + di) / (ti * (ti + qi))
-        if (boi) then 
-            hi = vi / (ti + ui)
-            zi = 1.d0 - ri * hi
-            hi = ri + hi
-            if (zi == 0.d0) then
-                zi = cb
-            end if
-            if (zi .lt. 0.d0) then
-                m = m + int(sign(1.d0, hi))
-            end if
-            si = atan(hi / zi) + m * pi
-        else
-            if (bk) then
-                si = asin(yei)
-            else
-                si = log(zi) + m * ln2
-            end if
-            si = si * 0.5
-        end if
-        ei = (ei + sqrt(fai) * si) / n
-        if (xi .gt. 0.d0) then
-            e(i) = ei
-        else
-            e(i) = -ei
-        end if
+    if (kc == 0.d0) then
+        s = ca / (1.d0 + abs(x))
+    else
+        s = kc
+    end if
+    t = s * s
+    pmi = t * 0.5
+    e = hh * t
+    z = abs(f)
+    r = abs(pp)
+    h = 1.d0 + hh
+    if ((e .lt. 1.d0) .AND. (z .lt. 0.1) .AND. (t .lt. 1.d0) .AND. (r .lt. 1.d0)) then
+        goto 1
+    end if 
+    w = 1.d0 + f
+    if (w == 0.d0) then
         goto 4
-
-1       do k=2,ND,1
-            rb(k) = 0.5 / k
-            ra(k) = 1.d0 - rb(k)
-        end do
-        zdi = 0.5 / (ND + 1)
-        si = ppi + pmi
-        do k=2,ND,1
-            rr(k) = si
-            pmi = pmi * ti * ra(k)
-            si = si * ppi + pmi
-        end do
-        ui = si * zdi
-        si = ui
-        boi = .FALSE.
-        do k=ND,2,-1
-            ui = ui + (rr(k) - ui) * rb(k)
-            boi = .NOT. boi
-            if (boi) then
-                vi = -ui
-            else
-                vi = ui
-            end if
-            si = si * hhi + vi
-        end do
-        if (boi) then
-            si = -si
+    end if
+    if (pp == 0.d0) then
+        p1 = cb / hh
+    else
+        p1 = p
+    end if
+    s = abs(s)
+    y = abs(x)
+    g = p1 - 1.d0
+    if (g == 0.d0) then
+        g = cb
+    end if
+    f = p1 - t
+    if (f == 0.d0) then
+        f = cb * t
+    end if 
+    am = 1.d0 - t
+    ap = 1.d0 + e
+    r = p1 * h
+    fa = g / (f * p1)
+    bo = fa .gt. 0.d0
+    fa = abs(fa)
+    pz = abs(g * f)
+    de = sqrt(pz)
+    q = sqrt(abs(p1))
+    if (pm .gt. 0.5) then 
+        pm = 0.5
+    end if
+    pm = p1 - pm
+    if (pm .ge. 0.d0) then
+        u = sqrt(r * ap)
+        v = y * de
+        if (g .lt. 0.d0) then
+            v = -v
         end if
-        ui = (ui + 1.d0) * 0.5
-        e(i) = (ui - si * hi) * sqrt(hi) * xi + ui * asin(xi)
-4   end do
-    return
+        d = 1.d0 / q
+        c = 1.d0
+    else
+        u = sqrt(h * ap * pz)
+        ye = y * q
+        v = am * ye
+        q = -de / g
+        d = -am / de
+        c = 0.d0
+        pz = ap - r
+    end if
+    if (bo) then
+        r = v / u
+        z = 1.d0
+        k = 1
+        if (pm .lt. 0.d0) then
+            h = y * sqrt(h / (ap * fa))
+            h = 1.d0 / h - h
+            z = h - r - r
+            r = 2.d0 + r * h
+            if (r == 0.d0) then
+                r = cb
+            end if
+            if (z == 0.d0) then 
+                z = h * cb
+            end if
+            r = r / z
+            z = r
+            w = pz
+        end if
+        u = u / w
+        v = v / w
+    else
+        t = u + abs(v)
+        bk = .TRUE.
+        if (p1 .lt. 0.d0) then
+            de = v / pz
+            ye = u * ye
+            ye = ye + ye
+            u = t / pz
+            v = (-f - g * e) / t
+            t = pz * abs(w)
+            z = (hh * r * f - g * ap + ye) / t
+            ye = ye / t
+        else
+            de = v / w 
+            ye = 0.d0
+            u = (e + p1) / t
+            v = t / w
+            z = 1.d0
+        end if
+        if (s .gt. 1.d0) then
+            h = u
+            u = v
+            v = h
+        end if
+    end if
+    y = 1.d0 / y
+    e = s
+    n = 1
+    t = 1.d0
+    m = 0
+    l = 0
+3   y = y - e / y
+    if (y == 0.d0) then
+        y = sqrt(e) * cb
+    end if
+    f = c
+    c = d / q + c
+    g = e / q
+    d = f * g + d
+    d = d + d
+    q = g + q
+    g = t
+    t = s + t
+    n = n + n
+    m = m + m
+    if (bo) then 
+        if (z .lt. 0.d0) then 
+            m = k + m
+        end if 
+        k = int(sign(1.d0, r))
+        h = e / (u * u + v * v)
+        u = u * (1.d0 + h)
+        v = v * (1.d0 - h)
+    else
+        r = u / v 
+        h = z * r
+        z = h * z
+        hh = e / v
+        if (bk) then
+            de = de / u
+            ye = ye * (h + 1.d0 / h) + de * (1.d0 + r)
+            de = de * (u - hh)
+            bk = abs(ye) .lt. 1.d0
+        else
+            k = exponent(z)
+            z = fraction(z)
+            m = m + k
+        end if
+    end if
+    if (abs(g - s) .gt. ca * g) then 
+        if (bo) then
+            g = (1.d0 / r - r) * 0.5
+            hh = u + v * g
+            h = g * u - v
+            if (hh == 0.d0) then
+                hh = u * cb
+            end if
+            if (h == 0) then
+                h = v * cb
+            end if
+            z = r * h
+            r = hh / h
+        else
+            u = u + e / u
+            v = v + hh
+        end if
+        s = sqrt(e)
+        s = s + s
+        e = s * t
+        l = l + l
+        if (y .lt. 0.d0) then 
+            l = 1 + l
+        end if 
+        goto 3
+    end if
+    if (y .lt. 0.d0) then
+        l = 1 + l
+    end if
+    e = atan(t / y) + pi * l
+    e = e * (c * t + d) / (t * (t + q))
+    if (bo) then 
+        h = v / (t + u)
+        z = 1.d0 - r * h
+        h = r + h
+        if (z == 0.d0) then
+            z = cb
+        end if
+        if (z .lt. 0.d0) then
+            m = m + int(sign(1.d0, h))
+        end if
+        s = atan(h / z) + m * pi
+    else
+        if (bk) then
+            s = asin(ye)
+        else
+            s = log(z) + m * ln2
+        end if
+        s = s * 0.5
+    end if
+    e = (e + sqrt(fa) * s) / n
+    if (x .le. 0.d0) then
+        e = -e
+    end if
+    goto 4
+
+1   do k=2,ND,1
+        rb(k) = 0.5 / k
+        ra(k) = 1.d0 - rb(k)
+    end do
+    zd = 0.5 / (ND + 1)
+    s = p + pm
+    do k=2,ND,1
+        rr(k) = s
+        pm = pm * t * ra(k)
+        s = s * pp + pm
+    end do
+    u = s * zd
+    s = u
+    bo = .FALSE.
+    do k=ND,2,-1
+        u = u + (rr(k) - u) * rb(k)
+        bo = .NOT. bo
+        if (bo) then
+            v = -u
+        else
+            v = u
+        end if
+        s = s * hh + v
+    end do
+    if (bo) then
+        s = -s
+    end if
+    u = (u + 1.d0) * 0.5
+    e = (u - s * h) * sqrt(h) * x + u * asin(x)
+4 return
 end
 
 
