@@ -1,13 +1,15 @@
 module ellip
 implicit none
 
+!real*8 :: el1, el2, el3
+
 contains
 
-subroutine el1(x, kc, e)
+real*8 function el1(x, kc)
 
     integer :: j
-    real :: x, kc
-    real, intent(out) :: e
+    real*8 :: x, kc, e
+    !real, intent(out) :: e
     
     real*8 :: g, m, y
     real*8 :: D = 8
@@ -23,7 +25,7 @@ subroutine el1(x, kc, e)
     m = 1.d0
     
     if (kc == 0.d0) then
-        e = log(x + 1.d0 / cos(atan(x))
+        e = log(x + 1.d0 / cos(atan(x)))
         goto 2
     end if
     
@@ -52,13 +54,14 @@ subroutine el1(x, kc, e)
         e = -e
     end if
     
-2 return
+2 el1 = e
+return
 end
 
-subroutine el2(x, kc, a, b, e)
+real*8 function el2(x, kc, a, b)
 
-    real :: x, kc, a, b
-    real intent(out) :: e
+    real*8 :: x, kc, a, b, e
+    !real, intent(out) :: e
     
     real*8 :: c, dd, f, g, ik, m, p, y, z
     real*8 :: D = 8
@@ -76,30 +79,29 @@ subroutine el2(x, kc, a, b, e)
     c = dd / (2.d0 * p)
     z = a - b
     ik = a
-    a = (b + a) / 2.d0
+    a = (b + a) * 0.5
     y = abs(1.d0/x)
     f = 0.d0
     kc = abs(kc)
     m = 1.d0
         
     if (kc == 0.d0) then
-        e = sin(atan(x)
+        e = sin(atan(x))
         goto 2
     end if
 
     l = 0
-        
 1   b = ik * kc + b
     e = m * kc
     g = e / p
-    d = f * g + d
+    dd = f * g + dd
     f = c
     ik = a
     p = g + p
-    c = (d / p + c) / 2.d0
+    c = (dd / p + c) / 2.d0
     g = m
     m = kc + m
-    a = (b / m + a) / 2.d0
+    a = (b / m + a) * 0.5
     y = - (e/y) + y
     if (y == 0) then
         y = sqrt(e) * cb
@@ -122,13 +124,14 @@ subroutine el2(x, kc, a, b, e)
         e = e + c * z
     end if
     
-2 return
+2 el2 = e
+return
 end
 
-subroutine el3(x, kc, p, e) bind(C, name="el3")
+real*8 function el3(x, kc, p)
 
-    real :: x, kc, p
-    real intent(out) :: e
+    real*8 :: x, kc, p, e
+    !real, intent(out) :: e
     
     real*8 :: am, ap, c, d, de, f, fa, g
     real*8 :: h, hh, p1, pm, pz, q, r, s 
@@ -153,10 +156,10 @@ subroutine el3(x, kc, p, e) bind(C, name="el3")
         s = kc
     end if
     t = s * s
-    pmi = t * 0.5
+    pm = t * 0.5
     e = hh * t
     z = abs(f)
-    r = abs(pp)
+    r = abs(p)
     h = 1.d0 + hh
     if ((e .lt. 1.d0) .AND. (z .lt. 0.1) .AND. (t .lt. 1.d0) .AND. (r .lt. 1.d0)) then
         goto 1
@@ -165,7 +168,7 @@ subroutine el3(x, kc, p, e) bind(C, name="el3")
     if (w == 0.d0) then
         goto 4
     end if
-    if (pp == 0.d0) then
+    if (p == 0.d0) then
         p1 = cb / hh
     else
         p1 = p
@@ -365,7 +368,7 @@ subroutine el3(x, kc, p, e) bind(C, name="el3")
     do k=2,ND,1
         rr(k) = s
         pm = pm * t * ra(k)
-        s = s * pp + pm
+        s = s * p + pm
     end do
     u = s * zd
     s = u
@@ -385,7 +388,9 @@ subroutine el3(x, kc, p, e) bind(C, name="el3")
     end if
     u = (u + 1.d0) * 0.5
     e = (u - s * h) * sqrt(h) * x + u * asin(x)
-4 return
+    
+4 el3 = e
+return
 end
 
 
