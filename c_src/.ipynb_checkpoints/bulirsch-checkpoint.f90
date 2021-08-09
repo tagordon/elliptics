@@ -1,5 +1,9 @@
+! These routines might be useful for implementing a scipy version of the bulirsch elliptic integrals
+! Use ellip.f90 instead sfor the photodynamics code
+
 module bulirsch
 use iso_c_binding
+use ellip
 implicit none
 
 contains
@@ -7,36 +11,48 @@ contains
 subroutine f_bulirsch(phi, m, e, j) bind(C, name="f_burl")
 
     integer (c_int), bind(C) :: j
+    integer :: i
     real (c_double), bind(C) :: phi(j), m(j)
     real (c_double), bind(C), dimension(j), intent(out) :: e
     
-    call el1(tan(phi), sqrt(1 - m), e, j)
+    do i=1,j,1
+        e(i) = el1(tan(phi(i)), sqrt(1.d0 - m(i)))
+    end do
+    !call el1(tan(phi), sqrt(1 - m), e, j)
     return
 end
 
 subroutine e_bulirsch(phi, m, e, j) bind(C, name="e_burl")
 
     integer (c_int), bind(C) :: j
+    integer :: i
     real (c_double), bind(C) :: phi(j), m(j)
-    real*8:: o(j)
+    real*8 :: o(j)
     real (c_double), bind(C), dimension(j), intent(out) :: e
     
     o = 1.d0
-    call el2(tan(phi), sqrt(1 - m), o, 1 - m, e, j)
+    do i=1,j,1
+        e(i) = el2(tan(phi(i)), sqrt(1.d0 - m(i)), o(i), 1.d0 - m(i))
+    end do
+    !call el2(tan(phi), sqrt(1 - m), o, 1 - m, e, j)
     return
 end
 
 subroutine p_bulirsch(phi, n, m, e, j) bind(C, name="p_burl")
 
     integer (c_int), bind(C) :: j
+    integer :: i
     real (c_double), bind(C) :: phi(j), m(j), n(j)
     real (c_double), bind(C), dimension(j), intent(out) :: e
     
-    call el3(tan(phi), sqrt(1 - m), 1 - n, e, j)
+    do i=1,j,1
+        e(i) = el3(tan(phi(i)), sqrt(1.d0 - m(i)), 1.d0 - n(i))
+    end do
+    !call el3(tan(phi), sqrt(1 - m), 1 - n, e, j)
     return
 end
 
-subroutine el1(x, kc, e, j) bind(C, name="el1")
+subroutine el1_tmp(x, kc, e, j) bind(C, name="el1")
 
     integer (c_int), bind(C) :: j
     real (c_double), bind(C) :: x(j), kc(j)
@@ -100,7 +116,7 @@ subroutine el1(x, kc, e, j) bind(C, name="el1")
     return
 end
 
-subroutine el2(x, kc, a, b, e, j) bind(C, name="el2")
+subroutine el2_tmp(x, kc, a, b, e, j) bind(C, name="el2")
 
     integer (c_int), bind(C) :: j
     real (c_double), bind(C) :: x(j), kc(j), a(j), b(j)
@@ -189,7 +205,7 @@ subroutine el2(x, kc, a, b, e, j) bind(C, name="el2")
     return
 end
 
-subroutine el3(x, kc, p, e, j) bind(C, name="el3")
+subroutine el3_tmp(x, kc, p, e, j) bind(C, name="el3")
 
     integer (c_int), bind(C) :: j
     real (c_double), bind(C) :: x(j), kc(j), p(j)

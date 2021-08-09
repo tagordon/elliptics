@@ -1,88 +1,58 @@
 module phot
-
-use ellip
 use iso_c_binding
+use ellip
 implicit none
 
-!PI=4.D0*DATAN(1.D0)
 contains
 
-!subroutine integrate_const(s1, s2, r, b, f) bind(C, name="integrate_const")
-!    return
-!end
+real*8 function F(phi, r, b)
 
-subroutine integrate_linear(s1, s2, r, b, g) bind(C, name="integrate_linear")
-
-    real (C_DOUBLE), bind(C) :: s1, s2, r, b
-    real (C_DOUBLE), bind(C), intent(out) :: g
-    real*8 :: d2, k2, k, c1, c2, c3, s3, t2, t1
-    real*8 :: coeffA, ne, num, denom, coeffB
-    real*8 :: R1, R2, DR, alpha, beta, gamma
-    real*8 :: bint, dint, jint
-
-    d2 = (r - b)**2
-    k2 = 0.25 * (1.d0 - d2) / (r * b)
-    ne = (d2 - 1) / d2
+    real*8 :: phi, r, b
+    real*8 :: pi = 3.14159265358979323846264
+    real *8 :: o = 1.d0
+    real*8 :: a, b, c, d, s, n, m, x
+    real*8 :: ellipf, ellipe, ellippi
     
-    c1 = sqrt(1.d0 - s1**2)
-    c2 = sqrt(1.d0 - s2**2)
-    
-    c3 = c2 * c1 + s2 * s1 * sqrt((1.d0 - k2 * s2**2) & 
-             * (1.d0 - k2 * s1**2)) / (1.d0 - k2 * s1**2 * s2**2)
-    s3 = sqrt(1.d0 - c3**2)
-    coeffA = - k2 * s1 * s2 * s3
-    
-    num = s1 * s2 * s3 * sqrt( ne * (1 - ne) * ( ne - k2))
-    denom = 1 - ne * s3 + ne * s1 * s2 * s3 * sqrt(1 - k2 * s3)
-    coeffB = sqrt( ne / ((1 - ne) * ( ne - k2 ))) * atan(num / denom)
-    
-    ! if something is amiss, check this logic. 
-    if (abs(s1) .LT. 1e-10) then
-        t1 = 0.d0
+    if (b == 0) then
+        if (r == 0) then
+            return phi / 3.d0
+        else
+            return phi * (1.d0 - (1.d0 - r * r) ** (3.d0 * 0.5)) / 3.d0
+    else if (b == r) then
+        if (r == 0.5) then
+            return phi / 6.d0 - (1 / 3.d0) * Sin(phi * 0.5) &
+                   * (1.d0 - Sin(phi * 0.5)**2.d0 / 3.d0)
+        else
+            a = 4 * (2 * r * r - 1.d0) / 9.d0
+            b = (1.d0 - 4 * r * r) / 9.d0
+            d = phi / 6.d0 - 2 * r * r * Sin(phi) & 
+                * Sqrt(1.d0 + 2 * r * r * (Cos(phi)-1.d0)) / 9.d0
+            s = phi / 2.d0
+            m = 4 * r * r
+            ellipf = el1(Tan(s), Sqrt(1.d0 - m))
+            ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
+            return a * ellipf + b * ellipe + d
+    else if (b + r == 1.d0) then
+        return phi / 6.d0 - Atan((2 * r - 1.d0) / Tan(phi * 0.5)) / 3.d0 &
+                + Atan(2 * Sqrt(r * b) * Sin(phi * 0.5) / (1.d0 - 2 * r)) / 3.d0 &
+                + pi *  Sqrt(1.d0 - 4 * r * b) / (2 * r - 1.d0) / 6.d0 &
+                + (2.d0 / 9.d0) * Sqrt(b * r) * (2 * r * (5 * r - 2.d0) &
+                - 2 * b * r * Cos(phi) - 3.d0) * Sin(phi * 2.d0)
     else
-        t1 = (1.d0 / 3) * atan(((r-b)/(r+b)) * (1 - c1) / s1)
-    end if
-    if (abs(s2) .LT. 1e-10) then
-        t2 = 0.d0
-    else
-        t2 = (1.d0 / 3) * atan(((r-b)/(r+b)) * (1 - c2) / s2)
-    end if
-        
-    if (b .GT. r) then
-        R2 = -t2 + asin(s2)/6 + (2.d0 / 9) * r * b * sqrt(1 - r**2 - b**2 - 2 * r * b * c2) * s2
-        R1 = -t1 + asin(s1)/6 + (2.d0 / 9) * r * b * sqrt(1 - r**2 - b**2 - 2 * r * b * c1) * s1
-        DR = R2 - R1
-    else if (b .LT. r) then
-        R2 = t2 + asin(s2)/6 + (2.d0 / 9) * r * b * sqrt(1 - r**2 - b**2 - 2 * r * b * c2) * s2
-        R1 = t1 + asin(s1)/6 + (2.d0 / 9) * r * b * sqrt(1 - r**2 - b**2 - 2 * r * b * c1) * s1
-        DR = R2 - R1
-    else 
-        DR = 0
-    end if
-    
-    alpha = (1.d0 / 6) * (1 - 4 * r**2 - 2 * r**4) / sqrt(r * b) &
-        + sqrt(r * b) * (1.d0 / 9) * (7 * r**2 + 5 * r * b + b**2 - 4)
-    beta = sqrt(r * b) * (1.d0 / 9) * (8 - 14 * r**2 - 2 * b**2)
-    
-    ! also check this limit... 
-    if (r .EQ. b) then 
-        gamma = 0
-    else 
-        gamma = (1.d0 / 6) * (r + b) / (r - b) / sqrt(r * b)
-    end if 
-    
-    call elsbdj(s3, ne, 1.d0 - k2, bint, dint, jint)
-    
-    !f = (dR - beta * coeffA - gamma * coeffB) & 
-    !    + (alpha + beta + gamma) * bint & 
-    !    + (alpha + beta * (1 - k2) + gamma) * dint & 
-    !    + gamma * ne * jint
-    !f = jint   
-    return
-end
+        x = Sqrt(1.d0 - (b - r)**2.d0)
+        a = (7 * r * r + b * b - 4.d0) * x / 9.d0
+        b = (r**4.d0 + b**4.d0 + r * r - b * b * (5.d0 + 2 * r * r) + 1.d0) / (9 * x)
+        c = (b + r) / (b - r) / (3 * x)
+        d = phi / 6.d0 - Atan((b + r) / (b - r) * Tan(phi * 0.5)) / 3.d0 &
+                - (2 * b * r / 9.d0) * Sin(phi) &
+                * Sqrt(1.d0 - b * b - r * r + 2 * b * r * Cos(phi))
+        s = phi * 0.5
+        n = - 4 * r * b / (b - r)**2
+        m = 4 * r * b / (1.d0 - (r - b)**2)
+        ellipf = el1(Tan(s), Sqrt(1.d0 - m))
+        ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
+        ellippi = el3(Tan(s), sqrt(1.d0 - m), 1.d0 - n)
+        return a * elipf + b * ellipe + c * ellippi + d
 
-!subroutine integrate_quad(s1, s2, r, b, f) bind(C, name="integrate_quad")
-!    return
-!end 
-    
-end
+
+end module phot
