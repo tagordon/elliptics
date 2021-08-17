@@ -1,3 +1,5 @@
+rm *.o
+rm *.mod
 gfortran -c ellip.f90
 gfortran -c phot.f90
 gfortran -c bulirsch.f90

@@ -10,9 +10,14 @@
 void f_burl(double phi[], double m[], double *e, int *j);
 void e_burl(double phi[], double m[], double *e, int *j);
 void p_burl(double phi[], double n[], double m[], double *e, int *j);
+void test_int(double phi1[], double phi2[], double b[], double r[], double *res, int *j);
 
 int main(){
     return 0;
+}
+
+void I(double *phi1, double *phi2, double *b, double *r, double *res, int j){
+    test_int(phi1, phi2, r, b, res, &j);
 }
 
 void F(double *phi, double *m, double *e, int j){

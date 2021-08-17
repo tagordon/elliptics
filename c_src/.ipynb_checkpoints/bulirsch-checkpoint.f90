@@ -4,9 +4,23 @@
 module bulirsch
 use iso_c_binding
 use ellip
+use phot
 implicit none
 
 contains
+
+subroutine test_integral(phi1, phi2, r, b, res, j) bind(C, name="test_int")
+    
+    integer (c_int), bind(C) :: j
+    integer :: i
+    real (c_double), bind(C) :: phi1(j), phi2(j), r(j), b(j)
+    real (c_double), bind(c), dimension(j), intent(out) :: res
+    
+    do i=1,j,1
+        res(i) = F(phi2(i), r(i), b(i)) + F(phi1(i), r(i), b(i))
+    end do
+    return
+end
 
 subroutine f_bulirsch(phi, m, e, j) bind(C, name="f_burl")
 
