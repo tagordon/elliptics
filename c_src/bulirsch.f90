@@ -17,7 +17,7 @@ subroutine test_integral(phi1, phi2, r, b, res, j) bind(C, name="test_int")
     real (c_double), bind(c), dimension(j), intent(out) :: res
     
     do i=1,j,1
-        res(i) = F(phi2(i), r(i), b(i)) + F(phi1(i), r(i), b(i))
+        res(i) = F_old(phi2(i), r(i), b(i)) + F_old(phi1(i), r(i), b(i))
     end do
     return
 end
@@ -474,7 +474,7 @@ subroutine el3_tmp(x, kc, p, e, j) bind(C, name="el3")
             si = atan(hi / zi) + m * pi
         else
             if (bk) then
-                si = asin(yei)
+                si = asinh(yei)
             else
                 si = log(zi) + m * ln2
             end if
@@ -516,7 +516,7 @@ subroutine el3_tmp(x, kc, p, e, j) bind(C, name="el3")
             si = -si
         end if
         ui = (ui + 1.d0) * 0.5
-        e(i) = (ui - si * hi) * sqrt(hi) * xi + ui * asin(xi)
+        e(i) = (ui - si * hi) * sqrt(hi) * xi + ui * asinh(xi)
 4   end do
     return
 end 

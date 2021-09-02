@@ -7,12 +7,13 @@
 //void bdj_arrays(double s[], double n[], double mc[], double *b, double *d, double *j, int *k);
 //void fkp(double phi[], double n[], double mc[], double *f, double *e, double *p, int *k);
 //void integrate_linear(double *s1, double *s2, double *r, double *b, double *f);
-//void f_burl(double phi[], double m[], double *e, int *j);
-//void e_burl(double phi[], double m[], double *e, int *j);
-//void p_burl(double phi[], double n[], double m[], double *e, int *j);
+void f_burl(double *phi, double *m, double *e);
+void e_burl(double *phi, double *m, double *e);
+void p_burl(double *phi, double *n, double *m, double *e);
 //void test_int(double phi1[], double phi2[], double b[], double r[], double *res, int *j);
 void flux(double *c1, double *c2, double *rp, double *rm, double bp2[], double bm2[], double bpm2[], double *lc, int *j);
 void Arc(double *c1, double *c2, double *phi1, double *phi2, double *r, double *b, double *res);
+void F_lin(double *phi, double *r, double *b, double *res);
 
 int main(){
     return 0;
@@ -29,21 +30,29 @@ double Area(double c1, double c2, double r, double b, double e, double res){
     return res;
 }
 
+double Flin(double phi, double r, double b, double res){
+    F_lin(&phi, &r, &b, &res);
+    return res;
+}
+
 //void I(double *phi1, double *phi2, double *b, double *r, double *res, int j){
 //    test_int(phi1, phi2, r, b, res, &j);
 //}
 
-//void F(double *phi, double *m, double *e, int j){
-//    f_burl(phi, m, e, &j);
-//}
+double ellF(double phi, double m, double e){
+    f_burl(&phi, &m, &e);
+    return e;
+}
 
-//void E(double *phi, double *m, double *e, int j){
-//    e_burl(phi, m, e, &j);
-//}
+double ellE(double phi, double m, double e){
+    e_burl(&phi, &m, &e);
+    return e;
+}
 
-//void P(double *phi, double *n, double *m, double *e, int j){
-//    p_burl(phi, n, m, e, &j);
-//}
+double ellP(double phi, double n, double m, double e){
+    p_burl(&phi, &n, &m, &e);
+    return e;
+}
 
 //double integrate_along_curve(double s1, double s2, double r, double b){
 //    double f;

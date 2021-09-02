@@ -311,7 +311,7 @@ real*8 function el3(x, kc, p)
             if (hh == 0.d0) then
                 hh = u * cb
             end if
-            if (h == 0) then
+            if (h == 0.d0) then
                 h = v * cb
             end if
             z = r * h
@@ -347,7 +347,7 @@ real*8 function el3(x, kc, p)
         s = atan(h / z) + m * pi
     else
         if (bk) then
-            s = asin(ye)
+            s = asinh(ye)
         else
             s = log(z) + m * ln2
         end if
@@ -387,7 +387,7 @@ real*8 function el3(x, kc, p)
         s = -s
     end if
     u = (u + 1.d0) * 0.5
-    e = (u - s * h) * sqrt(h) * x + u * asin(x)
+    e = (u - s * h) * sqrt(h) * x + u * asinh(x)
     
 4 el3 = e
 return
