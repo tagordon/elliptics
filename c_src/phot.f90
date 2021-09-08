@@ -48,7 +48,7 @@ subroutine compute_theta(r1, r2, b, costheta, theta)
 
     real*8 :: r1, r2, b, costheta, theta
     
-    costheta = (r1**2 + b**2 - r2**2) / (2 * r1 * b)
+    costheta = (r1**2.d0 + b**2.d0 - r2**2.d0) / (2.d0 * r1 * b)
     theta = Acos(costheta)
 end
 
@@ -71,7 +71,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     bm = Sqrt(bm2)
     bpm = Sqrt(bpm2)
     
-    f0 = 2.d0 * pi * o3
+    f0 = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * 2 * pi * o3
     of0 = 1.d0 / f0
     lc = 1.d0
     
@@ -85,34 +85,30 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                 else
                     if (bm(i) + rm .lt. 1.d0) then
                         !lc(i) = 3.d0
-                        lc(i) = 1.d0 + Arc(c1, c2, -pilims, pilims, rm, bm(i)) * of0
+                        lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rm, bm(i)) * of0
                     else
                         !lc(i) = 4.d0
                         ! moon partially overlaps star, planet outside of star 
                         call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
                         call compute_theta(1.d0, rm, bm(i), costheta, theta)
-                        !lc(i) = (2*Arc(c1, c2, pi - theta, 0.d0, 1.d0, 0.d0) &
-                        !      + Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
-                        !lc(i) = Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i)) * of0
-                        lc(i) = - 2 * Arc(c1, c2, theta - pi, 0.d0, 1.d0, 0.d0)* of0 &
-                              + Arc(c1, c2, -thetamstar, thetamstar, rp, bp(i)) * of0
+                        lc(i) = (Arc(c1, c2, thetamstar, -thetamstar, rm, bm(i)) & 
+                              + Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0)) * of0
                     end if
                 end if
             else
                 if (bm(i) .gt. rm + 1.d0) then
                     if (bp(i) + rp .lt. 1.d0) then
                         !lc(i) = 5.d0
-                        lc(i) = 1.d0 + Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
+                        lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
                     else
                         !lc(i) = 6.d0
                         ! planet partially overlaps star, moon outside of star
                         call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
                         call compute_theta(1.d0, rp, bp(i), costheta, theta)
-                        !lc(i) = (2*Arc(c1, c2, pi - theta, 0.d0, 1.d0, 0.d0) &
-                        !      + Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
-                        !lc(i) = Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) * of0
-                        lc(i) = -2 * Arc(c1, c2, theta - pi, 0.d0, 1.d0, 0.d0)* of0 &
-                              + Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) * of0
+                        !lc(i) = (Arc(c1, c2, thetapstar, -thetapstar, rp, bp(i)) &
+                        !      + Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0)) * of0
+                        lc(i) = (Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0) &
+                              - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
                     end if
                 else
                     if (bp(i) + rp .lt. 1.d0) then
@@ -281,10 +277,9 @@ real*8 function F(c1, c2, phi, r, b)
 
     real*8 :: c1, c2, phi, r, b
     
-    !F = (1.d0 - c1 - 2 * c2) * F_const(phi, r, b) &
-    !  + (c1 + 2 * c2) * F_lin(phi, r, b) &
-    !  + c2 * F_quad(phi, r, b)
-    F= F_lin(phi, r, b)
+    F = (1.d0 - c1 - 2 * c2) * F_const(phi, r, b) &
+      - (c1 + 2 * c2) * F_lin(phi, r, b) &
+      + c2 * F_quad(phi, r, b)
     
     return
 end function
@@ -293,8 +288,9 @@ real*8 function F_const(phi, r, b)
 
     real*8 :: phi, r, b
     
-    F_const = (b - r*Cos(phi))*Sin(phi) * r * 0.5
+    F_const = 0.5 * r * (r * phi - b * Sin(phi))
     return
+    
 end function
 
 real*8 function F_lin(phi, r, b)
@@ -392,8 +388,7 @@ real*8 function F_quad(phi, r, b)
 
     real*8 :: phi, r, b
     
-    F_quad = (b**3 + 2*b*r*r + r*(-((3*b**2 + r**2)*Cos(phi)) &
-           + b*r*Cos(2*phi))) * Sin(phi) * r * 0.5 * o3
+    F_quad = r**2.d0 * 0.5 * o3 * (1.d0 - Cos(phi)**4.d0 + r**2.d0 * Sin(phi)**4.d0)
     
     return
 end function
