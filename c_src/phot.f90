@@ -4,7 +4,7 @@ use ellip
 
 implicit none
 
-real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415926
+real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415
 real*8, parameter :: o3 = 0.33333333333333333333, o9 = 0.1111111111111111111
 
 contains
@@ -62,7 +62,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     real (c_double), bind(C) :: c1, c2
     
     real*8 :: costhetapm, costhetapstar, costhetamstar, cosphim, cosphip, costheta, theta, cosphi1, cosphi2
-    real*8 :: thetapstar, thetamstar, thetapm, phim, phip
+    real*8 :: thetapstar, thetamstar, thetapm, phim, phip, thetap, thetam, costhetap, costhetam
     real*8 :: d1, d2, a
     real*8 :: f0, of0
     
@@ -92,7 +92,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
                         call compute_theta(1.d0, rm, bm(i), costheta, theta)
                         lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
-                              - Arc(c1, c2, -thetamstar, thetamstar, rp, bp(i))) * of0
+                              - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
                     end if
                 end if
             else
@@ -118,17 +118,34 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         else
                             !lc(i) = 7.d0
                             ! planet completely overlaps star, moon partially overlaps star, no mutual overlap
-                            lc(i) = 1.d0
+                            call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                            call compute_theta(1.d0, rm, bm(i), costheta, theta)
+                            lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                  - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i)) &
+                                  - Arc(c1, c2, -pilims, pilims, rp, bp(i))) * of0
                         end if
                     else
-                        if (bp(i) + rp .lt. 1.d0) then
+                        !if (bp(i) + rp .lt. 1.d0) then
+                        if (bm(i) + rm .lt. 1.d0) then
                             !lc(i) = 8.d0
                             ! planet partially overlaps star, moon completely overlaps star, no mutual overlap
-                            lc(i) = 1.d0
+                            call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                            call compute_theta(1.d0, rp, bp(i), costheta, theta)
+                            lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                  - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) & 
+                                  - Arc(c1, c2, -pilims, pilims, rm, bm(i))) * of0
                         else
                             !lc(i) = 9.d0
                             ! moon and planet both partially overlap star, no mutual overlap
-                            lc(i) = 1.d0
+                            call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                            call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                            call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                            call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                            theta = thetap + thetam
+                            !lc(i) = bm(i)
+                            lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                  - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) & 
+                                  - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
                         end if
                     end if
                 end if
