@@ -14,6 +14,8 @@ void p_burl(double *phi, double *n, double *m, double *e);
 void flux(double *c1, double *c2, double *rp, double *rm, double bp2[], double bm2[], double bpm2[], double *lc, int *j);
 void Arc(double *c1, double *c2, double *phi1, double *phi2, double *r, double *b, double *res);
 void F_lin(double *phi, double *r, double *b, double *res);
+void F_const(double *phi, double *r, double *b, double *res);
+void F_quad(double *phi, double *r, double *b, double *res);
 
 int main(){
     return 0;
@@ -32,6 +34,16 @@ double Area(double c1, double c2, double r, double b, double e, double res){
 
 double Flin(double phi, double r, double b, double res){
     F_lin(&phi, &r, &b, &res);
+    return res;
+}
+
+double Fconst(double phi, double r, double b, double res){
+    F_const(&phi, &r, &b, &res);
+    return res;
+}
+
+double Fquad(double phi, double r, double b, double res){
+    F_quad(&phi, &r, &b, &res);
     return res;
 }
 

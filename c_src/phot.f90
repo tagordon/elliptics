@@ -4,7 +4,7 @@ use ellip
 
 implicit none
 
-real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.14127
+real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415926
 real*8, parameter :: o3 = 0.33333333333333333333, o9 = 0.1111111111111111111
 
 contains
@@ -71,7 +71,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     bm = Sqrt(bm2)
     bpm = Sqrt(bpm2)
     
-    f0 = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * 2 * pi * o3
+    f0 = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * 2 * pi * o3 + c2 * 0.5 * pi
     of0 = 1.d0 / f0
     lc = 1.d0
     
@@ -91,8 +91,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         ! moon partially overlaps star, planet outside of star 
                         call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
                         call compute_theta(1.d0, rm, bm(i), costheta, theta)
-                        lc(i) = (Arc(c1, c2, thetamstar, -thetamstar, rm, bm(i)) & 
-                              + Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0)) * of0
+                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                              - Arc(c1, c2, -thetamstar, thetamstar, rp, bp(i))) * of0
                     end if
                 end if
             else
@@ -105,9 +105,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         ! planet partially overlaps star, moon outside of star
                         call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
                         call compute_theta(1.d0, rp, bp(i), costheta, theta)
-                        !lc(i) = (Arc(c1, c2, thetapstar, -thetapstar, rp, bp(i)) &
-                        !      + Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0)) * of0
-                        lc(i) = (Arc(c1, c2, theta - pi, pi - theta, 1.d0, 0.d0) &
+                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
                               - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
                     end if
                 else
@@ -115,7 +113,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         if (bm(i) + rm .lt. 1.d0) then
                             !lc(i) = bp(i) + rp
                             !lc(i) = 7.d0
-                            lc(i) = 1.d0 + (Arc(c1, c2, -pilims, pilims, rm, bm(i)) &
+                            lc(i) = 1.d0 - (Arc(c1, c2, -pilims, pilims, rm, bm(i)) &
                                   + Arc(c1, c2, -pilims, pilims, rp, bp(i))) * of0
                         else
                             !lc(i) = 7.d0
@@ -139,7 +137,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
             if (bm(i) .gt. rm + 1.d0) then
                 if (bp(i) + rp .lt. 1.d0) then
                     !lc(i) = 10.d0
-                    lc(i) = 1.d0 + Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
+                    lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
                 else
                     !lc(i) = 11.d0
                     ! planet partially overlaps star, moon outside of star
@@ -150,7 +148,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                     if (bm(i) + rm .lt. 1.d0) then
                         if (bpm(i) + rm .lt. rp) then
                             !lc(i) = 12.d0
-                            lc(i) = 1.d0 + Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
+                            lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
                         else
                             !lc(i) = 13.d0
                             ! moon and planet both fully overlap star and partially overlap each other
@@ -278,7 +276,7 @@ real*8 function F(c1, c2, phi, r, b)
     real*8 :: c1, c2, phi, r, b
     
     F = (1.d0 - c1 - 2 * c2) * F_const(phi, r, b) &
-      - (c1 + 2 * c2) * F_lin(phi, r, b) &
+      + (c1 + 2 * c2) * F_lin(phi, r, b) &
       + c2 * F_quad(phi, r, b)
     
     return
@@ -302,16 +300,16 @@ real*8 function F_lin(phi, r, b)
     
     if (b == 0.d0) then
         if (r == 1.d0) then
-            F_lin = -phi * o3
+            F_lin = phi * o3
             return
         else
-            F_lin = -phi * (1.d0 - (1.d0 - r * r) ** (1.5)) * o3
+            F_lin = phi * (1.d0 - (1.d0 - r * r) ** (1.5)) * o3
             return
         end if
     else if (b == r) then
         if (r == 0.5) then
             s = phi * 0.5
-            F_lin = -phi * o3 * 0.5 + o3 * Sin(s) &
+            F_lin = phi * o3 * 0.5 + o3 * Sin(s) &
                    * (1.d0 - Sin(s)**2.d0 * o3)
             return
         else
@@ -324,16 +322,16 @@ real*8 function F_lin(phi, r, b)
             ellipf = el1(Tan(s), Sqrt(1.d0 - m))
             o = 1.d0
             ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
-            F_lin = -alpha * ellipe - beta * ellipf - d
+            F_lin = alpha * ellipe + beta * ellipf + d
             return
         end if
     else if (b + r == 1.d0) then
         s = phi * 0.5
-        F_lin = -phi * o3 * 0.5 + Atan((2 * r - 1.d0) / Tan(s)) * o3 &
-                - Atan(2 * Sqrt(r * b) * Sin(s) / (1.d0 - 2 * r)) * o3 &
-                - pi *  Sqrt(1.d0 - 4 * r * b) / (2 * r - 1.d0) * o3 * 0.5 &
-                - 2.d0 * o9 * Sqrt(b * r) * (2 * r * (5 * r - 2.d0) &
-                + 2 * b * r * Cos(phi) - 3.d0) * Sin(s)
+        F_lin = phi * o3 * 0.5 + Atan((2 * r - 1.d0) / Tan(s)) * o3 &
+                + Atan(2 * Sqrt(r * b) * Sin(s) / (1.d0 - 2 * r)) * o3 &
+                + pi *  Sqrt(1.d0 - 4 * r * b) / (2 * r - 1.d0) * o3 * 0.5 &
+                + 2.d0 * o9 * Sqrt(b * r) * (2 * r * (5 * r - 2.d0) &
+                - 2 * b * r * Cos(phi) - 3.d0) * Sin(s)
         return
     else if (b + r .gt. 1.d0) then
         
@@ -359,7 +357,7 @@ real*8 function F_lin(phi, r, b)
         ellippi = Sqrt(m) * ellippi
         ellipf = ellipf_tmp
         
-        F_lin = -alpha * ellipe - beta * ellipf - gamma * ellippi - d
+        F_lin = alpha * ellipe + beta * ellipf + gamma * ellippi + d
         return
     else
         x = Sqrt(1.d0 - (b - r)**2.d0)
@@ -376,7 +374,7 @@ real*8 function F_lin(phi, r, b)
         o = 1.d0
         ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
         ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
-        F_lin = -alpha * ellipe - beta * ellipf - gamma * ellippi - d
+        F_lin = alpha * ellipe + beta * ellipf + gamma * ellippi + d
         return
     end if
         
@@ -388,7 +386,9 @@ real*8 function F_quad(phi, r, b)
 
     real*8 :: phi, r, b
     
-    F_quad = r**2.d0 * 0.5 * o3 * (1.d0 - Cos(phi)**4.d0 + r**2.d0 * Sin(phi)**4.d0)
+    F_quad = -(r*(4*b*(2*b**2.d0 + 9*r**2.d0)*Sin(phi) &
+             - 4*r*(3*(2*b**2.d0 + r**2.d0)*phi + b*r*Sin(3*phi)) &
+             + r**3.d0*Sin(4*phi))) / 48.d0
     
     return
 end function
