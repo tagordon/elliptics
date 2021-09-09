@@ -354,25 +354,19 @@ real*8 function F_lin(phi, r, b)
         
         x = Sqrt(1.d0 - (b - r)**2.d0)
         s = phi * 0.5
-        alpha = (7 * r * r + b * b - 4.d0) * x * o9
-        beta = (r**4.d0 + b**4.d0 + r * r - b * b * (5.d0 + 2 * r * r) + 1.d0) / (9.d0 * x)
-        gamma = (b + r) / (b - r) / (3.d0 * x)
+        alpha = 2 * Sqrt(b * r) * (7 * r * r + b * b - 4.d0) * o9
+        beta = 3.d0 + 2*r*(b**3.d0 + 5*b*b*r + 3*r*(-2.d0 + r*r) + b*(-4.d0 + 7*r*r))
+        beta = -beta * o9 * 0.5 / Sqrt(b * r)
+        gamma = (b + r) * o3 / (2 * (b - r) * Sqrt(b * r))
         d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3
-        n = - 4 * r * b / (b - r)**2.d0
-        m = 4 * r * b / (1.d0 - (r - b)**2.d0)
-        
-        n = n / m
+
         s = pilims * Sign(1.d0, s) * 0.5
-        m = 1.d0 / m
+        m = (1.d0 - (r - b)**2.d0) / (4 * r * b)
+        n = 1.d0 - 1.d0 / (b - r)**2.d0
         ellipf = el1(Tan(s), Sqrt(1.d0 - m))
         o = 1.d0
         ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
         ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
-        
-        ellipf_tmp = Sqrt(m) * ellipf
-        ellipe = (ellipe - (1 - m)*ellipf) / Sqrt(m)
-        ellippi = Sqrt(m) * ellippi
-        ellipf = ellipf_tmp
         
         F_lin = alpha * ellipe + beta * ellipf + gamma * ellippi + d
         return
