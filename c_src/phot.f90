@@ -13,12 +13,12 @@ subroutine compute_phis(rp, rm, bp2, bm2, bpm2, cosphi2, cosphi1, phi1, phi2)
 
     real*8 :: rp, rm, bp2, bm2, bpm2
     real*8, intent(out) :: cosphi1, cosphi2, phi1, phi2
-    real*8 :: delta, gamma, s, t
+    real*8 :: delta, gamma, s, t, tmp
     
     real*8 :: bp, bm, bpm
-    bp = Sqrt(bp)
-    bm = Sqrt(bm)
-    bpm = Sqrt(bpm)
+    bp = Sqrt(bp2)
+    bm = Sqrt(bm2)
+    bpm = Sqrt(bpm2)
     
     delta = bm * bpm2 * rm &
           * Sqrt(((bm - bp - bpm) * (bm + bp - bpm) * (bm - bp + bpm) &
@@ -28,16 +28,16 @@ subroutine compute_phis(rp, rm, bp2, bm2, bpm2, cosphi2, cosphi1, phi1, phi2)
     gamma = bm2 * (bpm2 + rm**2 - rp**2) + (-bp2 + bpm2)*(bpm2 + rm**2 - rp**2)
     cosphi2 = (gamma - delta) / (4. * bm * bpm2 * rm)
     cosphi1 = (gamma + delta) / (4. * bm * bpm2 * rm)
-    phi1 = Acos(phi1)
-    phi2 = Acos(phi2)
+    phi1 = Acos(cosphi1)
+    phi2 = Acos(cosphi2)
     
     s = (bm2**2 + (bp2 - bpm2)**2. & 
       - (bm2*(bpm2**2. + 2. * bp2 * rm**2 & 
       + rm**4 - 2. * (bpm2 + rm**2.) * rp**2. + rp**4)) / rm**2) & 
       / (4. * bm2 * bpm**2)
     s = Sign(1.d0, s)
-    t = bpm - Sqrt(-(bm2 * rm) + bp2 * rm - bm * rm**2. + bm * rp**2.) & 
-      / Sqrt(bm + rm)
+    t = bpm**2.d0 - (-(bm2 * rm) + bp2 * rm - bm * rm**2. + bm * rp**2.d0) & 
+      / (bm + rm)
     t = Sign(1.d0, t)
     phi1 = s * t * phi1
     phi2 = - t * phi2
@@ -61,8 +61,9 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     real (c_double), bind(C), intent(out) :: lc(j)
     real (c_double), bind(C) :: c1, c2
     
-    real*8 :: costhetapm, costhetapstar, costhetamstar, cosphim, cosphip, costheta, theta, cosphi1, cosphi2
-    real*8 :: thetapstar, thetamstar, thetapm, phim, phip, thetap, thetam, costhetap, costhetam
+    real*8 :: costhetapm, costhetapstar, costhetamstar, cosphim1, cosphim2, cosphip1, cosphip2, costheta, theta
+    real*8 :: thetapstar, thetamstar, thetapm, phim1, phim2, phip1, phip2, thetap, thetam, costhetap, costhetam
+    real*8 :: phim, phip, cosphim, cosphip, cosphi1, cosphi2
     real*8 :: d1, d2, a
     real*8 :: f0, of0
     
@@ -152,13 +153,19 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
             end if
         else
             if (bm(i) .gt. rm + 1.d0) then
-                if (bp(i) + rp .lt. 1.d0) then
+                if (bp(i) .gt. rp + 1.d0) then
+                    ! planet and moon both outside of star
+                    lc(i) = 1.d0
+                else if (bp(i) + rp .lt. 1.d0) then
                     !lc(i) = 10.d0
                     lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
                 else
                     !lc(i) = 11.d0
                     ! planet partially overlaps star, moon outside of star
-                    lc(i) = 1.d0
+                    call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                    call compute_theta(1.d0, rp, bp(i), costheta, theta)
+                    lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                            - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
                 end if
             else
                 if (bp(i) + rp .lt. 1.d0) then
@@ -169,7 +176,9 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         else
                             !lc(i) = 13.d0
                             ! moon and planet both fully overlap star and partially overlap each other
-                            lc(i) = 1.d0
+                            call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                            call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                            lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, rp, bp(i)) + Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
                         end if
                     else 
                         if (bpm(i) + rm .lt. rp) then
