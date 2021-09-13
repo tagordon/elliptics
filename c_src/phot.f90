@@ -4,7 +4,7 @@ use ellip
 
 implicit none
 
-real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415
+real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415926
 real*8, parameter :: o3 = 0.33333333333333333333, o9 = 0.1111111111111111111
 
 contains
@@ -143,7 +143,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
                             call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
                             theta = thetap + thetam
-                            !lc(i) = bm(i)
                             lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
                                   - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) & 
                                   - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
@@ -190,7 +189,14 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             !lc(i) = 15.d0
                             ! planet fully overlaps star, moon partially overlaps star, 
                             ! planet and moon partially overlap each other
-                            lc(i) = 1.d0
+                            call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                            call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                            call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                            call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                            lc(i) = (Arc(c1, c2, thetam - pilims, pilims - thetam, 1.d0, 0.d0) &
+                                  - Arc(c1, c2, -thetamstar, phim2, rm, bm(i)) &
+                                  - Arc(c1, c2, phim1, thetamstar, rm, bm(i)) &
+                                  - Arc(c1, c2, phip1, phip2, rp, bp(i))) * of0
                         end if
                     end if
                 else
@@ -367,10 +373,16 @@ real*8 function F_lin(phi, r, b)
         beta = 3.d0 + 2*r*(b**3.d0 + 5*b*b*r + 3*r*(-2.d0 + r*r) + b*(-4.d0 + 7*r*r))
         beta = -beta * o9 * 0.5 / Sqrt(b * r)
         gamma = (b + r) * o3 / (2 * (b - r) * Sqrt(b * r))
-        d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3
-
-        s = pilims * Sign(1.d0, s) * 0.5
+        d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3 &
+                - (2 * b * r * o9) * Sin(phi) &
+                * Sqrt(1.d0 - b * b - r * r + 2 * b * r * Cos(phi))
+        
         m = (1.d0 - (r - b)**2.d0) / (4 * r * b)
+        if (abs(Sin(s) / Sqrt(m) - 1.D0) .lt. 1.D-5) then
+            d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3
+            s = pilims * Sign(1.d0, s) * 0.5
+        end if
+
         n = 1.d0 - 1.d0 / (b - r)**2.d0
         ellipf = el1(Tan(s), Sqrt(1.d0 - m))
         o = 1.d0
