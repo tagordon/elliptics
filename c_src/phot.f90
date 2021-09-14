@@ -78,7 +78,11 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     
     do i=1,j,1
         
-        if (bpm(i) .gt. rp + rm) then
+        if ((bp(i) .gt. rp + 1.d0) .AND. (bm(i) .gt. rm + 1.d0)) then
+            lc(i) = 1.d0
+            goto 1
+        
+        else if (bpm(i) .gt. rp + rm) then
             if (bp(i) .gt. rp + 1.d0) then
                 if (bm(i) .gt. rm + 1.d0) then
                     lc(i) = 1.d0
