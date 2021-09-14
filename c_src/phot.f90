@@ -189,6 +189,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         else
                             if (bpm(i) + rm .lt. rp) then
                                 ! doesn't happen
+                                lc(i) = 2.d0
                             else
                                 call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
                                 call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
@@ -201,163 +202,178 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             end if
                         end if
                     end if
-                end if
                                 
             
-                if (bp(i) + rp .lt. 1.d0) then
-                    if (bm(i) + rm .lt. 1.d0) then
-                        if (bpm(i) + rm .lt. rp) then
-                            !lc(i) = 12.d0
-                            lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
-                        else
-                            !lc(i) = 13.d0
+                    if (bp(i) + rp .lt. 1.d0) then
+                        if (bm(i) + rm .lt. 1.d0) then
+                            if (bpm(i) + rm .lt. rp) then
+                                lc(i) = 1.d0 - Arc(c1, c2, -pilims, pilims, rp, bp(i)) * of0
+                            else
                             ! moon and planet both fully overlap star and partially overlap each other
-                            call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                            call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                            lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, rp, bp(i)) + Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
-                        end if
-                    else 
-                        if (bpm(i) + rm .lt. rp) then
-                            !lc(i) = 14.d0
-                            ! planet fully overlaps star, moon partially overlaps star, moon fully overlaps planet
-                            ! I don't think this happens lol 
-                        else
-                            !lc(i) = 15.d0
-                            ! planet fully overlaps star, moon partially overlaps star, 
-                            ! planet and moon partially overlap each other
-                            call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                            call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                            call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
-                            call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
-                            lc(i) = (Arc(c1, c2, thetam - pilims, pilims - thetam, 1.d0, 0.d0) &
+                                call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, rp, bp(i)) + Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
+                            end if
+                        else 
+                            if (bpm(i) + rm .lt. rp) then
+                                !lc(i) = 14.d0
+                                ! planet fully overlaps star, moon partially overlaps star, moon fully overlaps planet
+                                ! I don't think this happens lol 
+                            else
+                                !lc(i) = 15.d0
+                                ! planet fully overlaps star, moon partially overlaps star, 
+                                ! planet and moon partially overlap each other
+                                call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                                lc(i) = (Arc(c1, c2, thetam - pilims, pilims - thetam, 1.d0, 0.d0) &
                                   - Arc(c1, c2, -thetamstar, phim2, rm, bm(i)) &
                                   - Arc(c1, c2, phim1, thetamstar, rm, bm(i)) &
                                   - Arc(c1, c2, phip1, phip2, rp, bp(i))) * of0
+                            end if
                         end if
-                    end if
-                else
-                    if (bm(i) + rm .lt. 1.d0) then 
-                        if (bpm(i) + rm .lt. rp) then
-                            !lc(i) = 16.d0
-                            ! planet partially overlaps star, moon fully overlaps star, moon fully overlaps planet
-                            call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                            call compute_theta(1.d0, rp, bp(i), costheta, theta)
-                            lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                    else
+                        if (bm(i) + rm .lt. 1.d0) then 
+                            if (bpm(i) + rm .lt. rp) then
+                                !lc(i) = 16.d0
+                                ! planet partially overlaps star, moon fully overlaps star, moon fully overlaps planet
+                                call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                call compute_theta(1.d0, rp, bp(i), costheta, theta)
+                                lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
                                     - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
-                        else
-                            !lc(i) = 17.d0
-                            ! planet partially overlaps star, moon fully overlaps star, 
-                            ! planet and moon partially overlap each other
-                            call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                            call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                            call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                            call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
-                            lc(i) = (Arc(c1, c2, thetap - pilims, pilims - thetap, 1.d0, 0.d0) &
+                            else
+                                !lc(i) = 17.d0
+                                ! planet partially overlaps star, moon fully overlaps star, 
+                                ! planet and moon partially overlap each other
+                                call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                                lc(i) = (Arc(c1, c2, thetap - pilims, pilims - thetap, 1.d0, 0.d0) &
                                   - Arc(c1, c2, -thetapstar, phip2, rp, bp(i)) &
                                   - Arc(c1, c2, phip1, thetapstar, rp, bp(i)) &
                                   - Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
-                        end if
-                    else
-                        if (bpm(i) + rm .lt. rp) then
-                            !lc(i) = 18.d0
-                            ! planet and moon both partially overlap star, moon fully overlaps planet
-                            call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                            call compute_theta(1.d0, rp, bp(i), costheta, theta)
-                            lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
-                                    - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
-                        else
-                            costhetapm = (bp2(i) + bm2(i) - bpm2(i)) / (2 * bp(i) * bm(i))
-                            cosphim = (bm2(i) + 1.d0 - rm**2.d0) / (2 * bm(i))
-                            cosphip = (bp2(i) + 1.d0 - rp**2.d0) / (2 * bp(i))
-                            if (abs(costhetapm - 1.d0) .lt. 1.d-5) then
-                                thetapm = 0.d0
-                            else
-                                thetapm = Acos(costhetapm)
                             end if
-                            phim = Acos(cosphim)
-                            phip = Acos(cosphip)
-                            if (thetapm + phim .lt. phip) then
-                                if ((bm(i) - rm) .lt. (bp(i) - rp)) then
-                                    ! planet and moon both partially overlap star but the part of the moon that extends 
-                                    ! beyond the limb of the star is entirely overlapped by the planet so this is the 
-                                    ! same as the case where the moon fully overlaps the star and partially overlaps the 
-                                    ! planet
-                                    call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                                    call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                                    call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                                    call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
-                                    lc(i) = (Arc(c1, c2, thetap - pilims, pilims - thetap, 1.d0, 0.d0) &
-                                      - Arc(c1, c2, -thetapstar, phip2, rp, bp(i)) &
-                                      - Arc(c1, c2, phip1, thetapstar, rp, bp(i)) &
-                                      - Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
-                                    !lc(i) = Arc(c1, c2, phip1, thetapstar, rp, bp(i)) * of0
-                                else
-                                    ! planet and moon both partially overlap star and each other, 
-                                    ! but moon/star overlap is entirely overlapped by planet/star overlap
-                                    call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                                    call compute_theta(1.d0, rp, bp(i), costheta, theta)
-                                    lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
-                                          - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
-                                end if
-                            else if (thetapm + phip .lt. phim) then
-                                ! planet and moon both partially overlap star and each other, 
-                                ! but planet/star overlap is entirely overlapped by moon/star overlap
-                                
-                                if ((bp(i) - rp) .lt. (bm(i) - rm)) then
-                                    call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                                    call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                                    call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
-                                    call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
-                                    lc(i) = (Arc(c1, c2, thetam - pilims, pilims - thetam, 1.d0, 0.d0) &
-                                        - Arc(c1, c2, -thetamstar, phim2, rm, bm(i)) &
-                                        - Arc(c1, c2, phim1, thetamstar, rm, bm(i)) & 
-                                        - Arc(c1, c2, phip1, phip2, rp, bp(i))) * of0
-                                else
-                                
-                                    call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
-                                    call compute_theta(1.d0, rm, bm(i), costheta, theta)
-                                    lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
-                                          - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
-                                end if
+                        else
+                            if (bpm(i) + rm .lt. rp) then
+                                !lc(i) = 18.d0
+                                ! planet and moon both partially overlap star, moon fully overlaps planet
+                                call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                call compute_theta(1.d0, rp, bp(i), costheta, theta)
+                                lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                    - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
                             else
-                                costheta = (bpm2(i) + bm2(i) - bp2(i)) / (2 * bpm(i) * bm(i))
-                                cosphim = (bpm2(i) + rm**2 - rp**2) / (2 * bpm(i) * rm)
-                                cosphi1 = Cos(Acos(costheta) - Acos(cosphim))
-                                cosphi2 = Cos(Acos(costheta) + Acos(cosphim))
-                                d1 = rm**2 + bm2(i) - 2 * rm * bm(i) * cosphi1
-                                d2 = rm**2 + bm2(i) - 2 * rm * bm(i) * cosphi2
-                                if (d1 .gt. 1.d0) then
-                                    !lc(i) = 19.d0
-                                    ! planet and moon both partially overlap star and each other, 
-                                    ! but the planet/moon overlap does not overlap the star
-                                    !lc(i) = 3.d0
-                                else if (d2 .lt. 1.d0) then
-                                    !lc(i) = 20.d0
-                                    ! planet and moon both partially overlap star and each other, 
-                                    ! with the planet/moon overlap fully overlapping the star
-                                    !lc(i) = 4.d0
+                                costhetapm = (bp2(i) + bm2(i) - bpm2(i)) / (2 * bp(i) * bm(i))
+                                cosphim = (bm2(i) + 1.d0 - rm**2.d0) / (2 * bm(i))
+                                cosphip = (bp2(i) + 1.d0 - rp**2.d0) / (2 * bp(i))
+                                if (abs(costhetapm - 1.d0) .lt. 1.d-5) then
+                                    thetapm = 0.d0
                                 else
-                                    !lc(i) = 21.d0
+                                    thetapm = Acos(costhetapm)
+                                end if
+                                phim = Acos(cosphim)
+                                phip = Acos(cosphip)
+                                if (thetapm + phim .lt. phip) then
+                                    if ((bm(i) - rm) .lt. (bp(i) - rp)) then
+                                        ! planet and moon both partially overlap star but the part of the moon that extends 
+                                        ! beyond the limb of the star is entirely overlapped by the planet so this is the 
+                                        ! same as the case where the moon fully overlaps the star and partially overlaps the 
+                                        ! planet
+                                        call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                        call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                        call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                        call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                                        lc(i) = (Arc(c1, c2, thetap - pilims, pilims - thetap, 1.d0, 0.d0) &
+                                          - Arc(c1, c2, -thetapstar, phip2, rp, bp(i)) &
+                                          - Arc(c1, c2, phip1, thetapstar, rp, bp(i)) &
+                                          - Arc(c1, c2, phim1, phim2, rm, bm(i))) * of0
+                                        !lc(i) = Arc(c1, c2, phip1, thetapstar, rp, bp(i)) * of0
+                                    else
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! but moon/star overlap is entirely overlapped by planet/star overlap
+                                        call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                        call compute_theta(1.d0, rp, bp(i), costheta, theta)
+                                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                          - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i))) * of0
+                                    end if
+                                else if (thetapm + phip .lt. phim) then
                                     ! planet and moon both partially overlap star and each other, 
-                                    ! with the planet/moon overlap partially overlapping the star
-                                    !lc(i) = 5.d0
-                                    call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
-                                    call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
-                                    call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
-                                    call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
-                                    call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
-                                    call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
-                                    theta = 0.5 * (thetap + thetam + thetapm)
-                                    lc(i) = (Arc(c1,c2, theta - pilims, pilims - theta, 1.d0, 0.d0) & 
-                                        - Arc(c1, c2, -thetamstar, -phim1, rm, bm(i)) & 
-                                        - Arc(c1, c2, phip1, thetapstar, rp, bp(i))) * of0
+                                    ! but planet/star overlap is entirely overlapped by moon/star overlap
+                                
+                                    if ((bp(i) - rp) .lt. (bm(i) - rm)) then
+                                        call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                        call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                        call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                        call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                                        lc(i) = (Arc(c1, c2, thetam - pilims, pilims - thetam, 1.d0, 0.d0) &
+                                            - Arc(c1, c2, -thetamstar, phim2, rm, bm(i)) &
+                                            - Arc(c1, c2, phim1, thetamstar, rm, bm(i)) & 
+                                            - Arc(c1, c2, phip1, phip2, rp, bp(i))) * of0
+                                    else
+                                
+                                        call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                        call compute_theta(1.d0, rm, bm(i), costheta, theta)
+                                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                          - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
+                                    end if
+                                else
+                                    costheta = (bpm2(i) + bm2(i) - bp2(i)) / (2 * bpm(i) * bm(i))
+                                    cosphim = (bpm2(i) + rm**2 - rp**2) / (2 * bpm(i) * rm)
+                                    cosphi1 = Cos(Acos(costheta) - Acos(cosphim))
+                                    cosphi2 = Cos(Acos(costheta) + Acos(cosphim))
+                                    d1 = rm**2 + bm2(i) - 2 * rm * bm(i) * cosphi1
+                                    d2 = rm**2 + bm2(i) - 2 * rm * bm(i) * cosphi2
+                                    if (d1 .gt. 1.d0) then
+                                        !lc(i) = 19.d0
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! but the planet/moon overlap does not overlap the star
+                                        call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                        call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                                        call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                        call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                                        theta = thetap + thetam
+                                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                          - Arc(c1, c2, -thetapstar, thetapstar, rp, bp(i)) & 
+                                          - Arc(c1, c2, -thetamstar, thetamstar, rm, bm(i))) * of0
+                                    else if (d2 .lt. 1.d0) then
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! with the planet/moon overlap fully overlapping the star
+                                        call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                        call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                        call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                        call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                                        call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                        call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                                        theta = thetam + thetap
+                                        lc(i) = (Arc(c1, c2, theta - pilims, pilims - theta, 1.d0, 0.d0) &
+                                            - Arc(c1, c2, -thetamstar, -phim1, rm, bm(i)) & 
+                                            - Arc(c1, c2, -phim2, thetamstar, rm, bm(i)) &
+                                            - Arc(c1, c2, phip1, thetapstar, rp, bp(i)) &
+                                            - Arc(c1, c2, -thetapstar, phip2, rp, bp(i))) * of0
+                                else
+                                        !lc(i) = 21.d0
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! with the planet/moon overlap partially overlapping the star
+                                        !lc(i) = 5.d0
+                                        call compute_phis(rp, rm, bp2(i), bm2(i), bpm2(i), cosphim2, cosphim1, phim1, phim2)
+                                        call compute_phis(rm, rp, bm2(i), bp2(i), bpm2(i), cosphip2, cosphip1, phip1, phip2)
+                                        call compute_theta(rm, 1.d0, bm(i), costhetamstar, thetamstar)
+                                        call compute_theta(1.d0, rm, bm(i), costhetam, thetam)
+                                        call compute_theta(rp, 1.d0, bp(i), costhetapstar, thetapstar)
+                                        call compute_theta(1.d0, rp, bp(i), costhetap, thetap)
+                                        theta = 0.5 * (thetap + thetam + thetapm)
+                                        lc(i) = (Arc(c1,c2, theta - pilims, pilims - theta, 1.d0, 0.d0) & 
+                                            - Arc(c1, c2, -thetamstar, -phim1, rm, bm(i)) & 
+                                            - Arc(c1, c2, phip1, thetapstar, rp, bp(i))) * of0
+                                    end if
                                 end if
                             end if
                         end if
                     end if
                 end if
-            end if
-        end if  
+            end if  
+        end if
     end do
     return
     
