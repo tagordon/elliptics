@@ -4,7 +4,7 @@ use ellip
 
 implicit none
 
-real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.1415926
+real*8, parameter :: pi = 3.14159265358979323846, pilims = 3.14159265358979323
 real*8, parameter :: o3 = 0.33333333333333333333, o9 = 0.1111111111111111111
 
 contains
@@ -411,7 +411,7 @@ end function
 real*8 function F(c1, c2, phi, r, b)
 
     real*8 :: c1, c2, phi, r, b, Fc, Fq, Fl
-    real*8 :: o
+    real*8 :: o, pc, ac, bc
     real*8 :: alpha, beta, gamma, d, s, n, m, x
     real*8 :: ellipf, ellipe, ellippi, ellipf_tmp
     
@@ -471,16 +471,27 @@ real*8 function F(c1, c2, phi, r, b)
         m = (1.d0 - (r - b)**2.d0) / (4 * r * b)
         if (abs(Sin(s) / Sqrt(m) - 1.D0) .lt. 1.D-7) then
             d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3
-            s = pilims * Sign(1.d0, s) * 0.5
+            !s = pilims * Sign(1.d0, s) * 0.5
+            n = 1.d0 - 1.d0 / (b - r)**2.d0
+            pc = 1.d0
+            ac = 1.d0
+            bc = 1.d0
+            o = 1.d0
+            ellipf = cel(Sqrt(1.d0 - m), pc, ac, bc)
+            pc = 1.d0
+            ac = 1.d0
+            ellipe = cel(Sqrt(1.d0 - m), pc, ac, 1.d0 - m)
+            ac = 1.d0
+            bc = 1.d0
+            ellippi = cel(Sqrt(1 - m), 1.d0 - n, ac, bc)
         else
             s = Asin(Sin(s) / Sqrt(m))
+            n = 1.d0 - 1.d0 / (b - r)**2.d0
+            ellipf = el1(Tan(s), Sqrt(1.d0 - m))
+            o = 1.d0
+            ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
+            ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
         end if
-
-        n = 1.d0 - 1.d0 / (b - r)**2.d0
-        ellipf = el1(Tan(s), Sqrt(1.d0 - m))
-        o = 1.d0
-        ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
-        ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
         
         Fl = alpha * ellipe + beta * ellipf + gamma * ellippi + d
         goto 2
@@ -495,10 +506,28 @@ real*8 function F(c1, c2, phi, r, b)
                 * Sqrt(1.d0 - b * b - r * r + 2 * b * r * Cos(phi))
         n = - 4 * r * b / (b - r)**2.d0
         m = 4 * r * b / (1.d0 - (r - b)**2.d0)
-        ellipf = el1(Tan(s), Sqrt(1.d0 - m))
-        o = 1.d0
-        ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
-        ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
+        
+        if (abs(abs(phi) - pi) .lt. 1.D-5) then
+        
+            d = pi * 0.5 * o3 * (1.d0 - Sign(1.d0, b - r))
+        
+            pc = 1.d0
+            ac = 1.d0
+            bc = 1.d0
+            o = 1.d0
+            ellipf = cel(Sqrt(1.d0 - m), pc, ac, bc)
+            pc = 1.d0
+            ac = 1.d0
+            ellipe = cel(Sqrt(1.d0 - m), pc, ac, 1.d0 - m)
+            ac = 1.d0
+            bc = 1.d0
+            ellippi = cel(Sqrt(1 - m), 1.d0 - n, ac, bc) 
+        else
+            ellipf = el1(Tan(s), Sqrt(1.d0 - m))
+            o = 1.d0
+            ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)
+            ellippi = el3(Tan(s), Sqrt(1.d0 - m), 1.d0 - n)
+        end if
         Fl = alpha * ellipe + beta * ellipf + gamma * ellippi + d
         goto 2
     end if
@@ -682,6 +711,38 @@ subroutine ellipp(phi, n, m, e) bind(C, name="p_burl")
     real*8, bind(C) :: phi, m, n
     real*8, bind(C), intent(out) :: e
     e = el3(Tan(phi), Sqrt(1.d0 - m), 1.d0 - n)
+end
+
+subroutine ellipkc(kc, e) bind(C, name="kc_burl")
+   
+   real*8, bind(C) :: kc
+   real*8, bind(C), intent(out) :: e
+   real*8 :: p, a, b
+   p = 1.d0
+   a = 1.d0
+   b = 1.d0
+   e = cel(kc, p, a, b)
+end
+
+subroutine ellipec(kc, e) bind(C, name="ec_burl")
+   
+   real*8, bind(C) :: kc
+   real*8, bind(C), intent(out) :: e
+   real*8 :: p, a, b
+   p = 1.d0
+   a = 1.d0
+   b = kc * kc
+   e = cel(kc, p, a, b)
+end
+
+subroutine ellippc(kc, p, e) bind(C, name="pc_burl")
+   
+   real*8, bind(C) :: kc, p
+   real*8, bind(C), intent(out) :: e
+   real*8 :: a, b
+   a = 1.d0
+   b = 1.d0
+   e = cel(kc, p, a, b)
 end
 
 end module phot

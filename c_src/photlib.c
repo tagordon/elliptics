@@ -10,6 +10,10 @@
 void f_burl(double *phi, double *m, double *e);
 void e_burl(double *phi, double *m, double *e);
 void p_burl(double *phi, double *n, double *m, double *e);
+
+void kc_burl(double *k, double *e);
+void ec_burl(double *k, double *e);
+void pc_burl(double *k, double *p, double *e);
 //void test_int(double phi1[], double phi2[], double b[], double r[], double *res, int *j);
 void flux(double *c1, double *c2, double *rp, double *rm, double bp2[], double bm2[], double bpm2[], double *lc, int *j);
 void Arc(double *c1, double *c2, double *phi1, double *phi2, double *r, double *b, double *res);
@@ -63,6 +67,21 @@ double ellE(double phi, double m, double e){
 
 double ellP(double phi, double n, double m, double e){
     p_burl(&phi, &n, &m, &e);
+    return e;
+}
+
+double ellPC(double k, double p, double e){
+    pc_burl(&k, &p, &e);
+    return e;
+}
+
+double ellEC(double k, double e){
+    ec_burl(&k, &e);
+    return e;
+}
+
+double ellKC(double k, double e){
+    kc_burl(&k, &e);
     return e;
 }
 

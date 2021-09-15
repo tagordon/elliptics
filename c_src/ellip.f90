@@ -393,5 +393,54 @@ real*8 function el3(x, kc, p)
 return
 end
 
+real*8 function cel(kc, p, a, b)
+
+    real*8 :: kc, p, a, b
+    real*8 :: CA, e, f, g, m, q
+    
+    CA = 1E-6
+    
+    kc = abs(kc)
+    e = kc
+    m = 1.d0
+    
+    if (kc .eq. 0.d0)then
+        cel = 0.d0 
+        return
+    end if 
+    
+    if (p .gt. 0.d0) then
+        p = sqrt(p)
+        b = b / p
+    else
+        f = kc * kc
+        q = 1.d0 - f
+        g = 1.d0 - p
+        f = f - p
+        q = (b - a * p) * q
+        p = sqrt(f / g)
+        a = (a - b) / g
+        b = -q / (g * g * p) + a * p
+    end if 
+
+1   f = a
+    a = b / p + a
+    g = e / p
+    b = f * g + b
+    b = b + b
+    p = g + p
+    g = m
+    m = kc + m
+    
+    if (abs(g - kc) .gt. g * CA) then
+        kc = sqrt(e)
+        kc = kc + kc
+        e = kc * m
+        goto 1
+    end if
+    cel = 1.57079632679489 * ((a * m + b) / (m * (m + p)))
+
+return
+end
 
 end module ellip
