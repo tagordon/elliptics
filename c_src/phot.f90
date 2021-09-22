@@ -501,9 +501,6 @@ real*8 function F(c1, c2, phi, r, b)
         alpha = (7 * r * r + b * b - 4.d0) * x * o9
         beta = (r**4.d0 + b**4.d0 + r * r - b * b * (5.d0 + 2 * r * r) + 1.d0) / (9.d0 * x)
         gamma = (b + r) / (b - r) / (3.d0 * x)
-        d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3 &
-                - (2 * b * r * o9) * Sin(phi) &
-                * Sqrt(1.d0 - b * b - r * r + 2 * b * r * Cos(phi))
         n = - 4 * r * b / (b - r)**2.d0
         m = 4 * r * b / (1.d0 - (r - b)**2.d0)
         
@@ -523,6 +520,9 @@ real*8 function F(c1, c2, phi, r, b)
             bc = 1.d0
             ellippi = cel(Sqrt(1 - m), 1.d0 - n, ac, bc) 
         else
+            d = phi * o3 * 0.5 - Atan((b + r) / (b - r) * Tan(s)) * o3 &
+                - (2 * b * r * o9) * Sin(phi) &
+                * Sqrt(1.d0 - b * b - r * r + 2 * b * r * Cos(phi))
             ellipf = el1(Tan(s), Sqrt(1.d0 - m))
             o = 1.d0
             ellipe = el2(Tan(s), Sqrt(1.d0 - m), o, 1.d0 - m)

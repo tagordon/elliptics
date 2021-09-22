@@ -4,9 +4,6 @@
 
 #define PI 3.14159265358979323846
 
-//void bdj_arrays(double s[], double n[], double mc[], double *b, double *d, double *j, int *k);
-//void fkp(double phi[], double n[], double mc[], double *f, double *e, double *p, int *k);
-//void integrate_linear(double *s1, double *s2, double *r, double *b, double *f);
 void f_burl(double *phi, double *m, double *e);
 void e_burl(double *phi, double *m, double *e);
 void p_burl(double *phi, double *n, double *m, double *e);
@@ -14,15 +11,24 @@ void p_burl(double *phi, double *n, double *m, double *e);
 void kc_burl(double *k, double *e);
 void ec_burl(double *k, double *e);
 void pc_burl(double *k, double *p, double *e);
-//void test_int(double phi1[], double phi2[], double b[], double r[], double *res, int *j);
 void flux(double *c1, double *c2, double *rp, double *rm, double bp2[], double bm2[], double bpm2[], double *lc, int *j);
 void Arc(double *c1, double *c2, double *phi1, double *phi2, double *r, double *b, double *res);
 void F_lin(double *phi, double *r, double *b, double *res);
 void F_const(double *phi, double *r, double *b, double *res);
 void F_quad(double *phi, double *r, double *b, double *res);
 
+void coords(double t[], double *ms, double *t0p, double *ep, double *Pp, double *Op, double *wp, double *ip, double *mp, \
+    double *t0m, double *em, double *Pm, double *Om, double *wm, double *im, double *mm, int *j, \
+    double xs[], double ys[], double zs[], double xp[], double yp[], double zp[], double xm[], double ym[], double zm[]);
+
 int main(){
     return 0;
+}
+
+void system_coords(double *t, double ms, double t0p, double ep, double Pp, double Op, double wp, double ip, double mp, \
+    double t0m, double em, double Pm, double Om, double wm, double im, double mm, int j, \
+    double *xs, double *ys, double *zs, double *xp, double *yp, double *zp, double *xm, double *ym, double *zm){
+    coords(t, &ms, &t0p, &ep, &Pp, &Op, &wp, &ip, &mp, &t0m, &em, &Pm, &Om, &wm, &im, &mm, &j, xs, ys, zs, xp, yp, zp, xm, ym, zm);
 }
 
 void LC(double c1, double c2, double rp, double rm, double *bp2, double *bm2, double *bpm2, double *lc, int j){
