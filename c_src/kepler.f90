@@ -13,7 +13,7 @@ subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
     integer :: j, i
     real*8 :: t(j), r(j), cosf(j), sinf(j), M(j), E(j), sE(j), cE(j)
     real*8 :: y(j), y2(j), denom(j)
-    real*8 :: n, t0, ecc, a, err, Mi, Ei
+    real*8 :: n, t0, ecc, a, err
     real*8 :: tol, x
     
     M = n * (t - t0)
@@ -29,11 +29,9 @@ subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
         
         do i=1,j,1
             err = 1.d0
-            Ei = E(i)
-            Mi = M(i)
             do while (err .gt. tol)
-                err = - (Ei - ecc * Sin(Ei) - Mi) / (1.d0 - ecc * Cos(Ei))
-                Ei = Ei + err
+                err = - (E(i) - ecc * Sin(E(i)) - M(i)) / (1.d0 - ecc * Cos(E(i)))
+                E(i) = E(i) + err
             end do
         end do    
         
