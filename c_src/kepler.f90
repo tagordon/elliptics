@@ -11,10 +11,11 @@ contains
 subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
 
     integer :: j, i
-    real*8 :: t(j), r(j), cosf(j), sinf(j), M(j), E(j), sE(j), cE(j)
-    real*8 :: y(j), y2(j), denom(j)
-    real*8 :: n, t0, ecc, a, err
-    real*8 :: tol, x
+    real*8, dimension(j) :: t, M, E, sE, cE
+    real*8, dimension(j), intent(out) :: r, cosf, sinf
+    real*8, dimension(j) :: y, y2, denom
+    real*8 :: n, t0, ecc, a
+    real*8 :: tol, x, err
     
     M = n * (t - t0)
     if (ecc .lt. 1.d-5) then
@@ -22,7 +23,7 @@ subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
         sinf = Sin(M)
         r = a
     else
-        tol = 1.d-9
+        tol = 1.d-7
         
         E = M + ecc
         x = Sqrt((1.d0 + ecc) / (1.d0 - ecc))
@@ -35,9 +36,8 @@ subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
             end do
         end do    
         
-        sE = Sin(E)
         cE = Cos(E)
-        y = x * sE / (1.d0 + cE)
+        y = x * Sin(E) / (1.d0 + cE)
         y2 = y * y
         denom = 1.d0 / (y2 + 1.d0)
         cosf = (1.d0 - y2) * denom
@@ -156,7 +156,7 @@ subroutine pscoords(t, n, t0, e, a, mprim, msec, w, omega, i, xp, yp, zp, xs, ys
     cw = Cos(w)
     sw = Sin(w)
     
-    cosfw = (cw + cosf - sw * sinf)
+    cosfw = (cw * cosf - sw * sinf)
     sinfw = (sw * cosf + sinf * cw)
     
     x = -r * (comega * cosfw - somega * sinfw * ci)
@@ -171,6 +171,97 @@ subroutine pscoords(t, n, t0, e, a, mprim, msec, w, omega, i, xp, yp, zp, xs, ys
     ys = mrsec * y
     zs = mrsec * z
 
+end
+
+subroutine coords_no_z(t, n, t0, e, a, mprim, msec, w, omega, i, xp, yp, xs, ys, j)
+
+    integer :: j
+    real*8 :: t(j), xp(j), yp(j), zp(j), xs(j), ys(j), zs(j), x(j), y(j), z(j)
+    real*8 :: n, t0, e, a, mprim, msec, w, omega, i, mrprim, mrsec, comega, somega, ci, cw, sw
+    real*8 :: cosf(j), sinf(j), r(j), f(j), cosfw(j), sinfw(j)
+    
+    call solve_kepler(t, n, t0, e, a, r, cosf, sinf, j)
+    
+    mrprim = -msec / (mprim + msec)
+    mrsec = mprim / (mprim + msec)
+    
+    comega = Cos(omega)
+    somega = Sin(omega)
+    ci = Cos(i)
+    cw = Cos(w)
+    sw = Sin(w)
+    
+    cosfw = (cw * cosf - sw * sinf)
+    sinfw = (sw * cosf + sinf * cw)
+    
+    x = -r * (comega * cosfw - somega * sinfw * ci)
+    y = -r * (somega * cosfw + comega * sinfw * ci)
+    
+    xp = mrprim * x
+    yp = mrprim * y
+    
+    xs = mrsec * x
+    ys = mrsec * y
+    
+end
+
+subroutine pscoords_no_z(t, n, t0, e, a, mprim, msec, w, omega, i, xp, yp, xs, ys, j)
+
+    integer :: j
+    real*8 :: t(j), xp(j), yp(j), xs(j), ys(j), x(j), y(j)
+    real*8 :: n, t0, e, a, mprim, msec, w, omega, i, mrprim, mrsec, comega, somega, cw, sw, ci
+    real*8 :: cosf(j), sinf(j), r(j), f(j), cosfw(j), sinfw(j)
+    
+    call solve_kepler(t, n, t0, e, a, r, cosf, sinf, j)
+    
+    mrprim = -msec / (mprim + msec)
+    mrsec = mprim / (mprim + msec)
+    
+    comega = Cos(omega)
+    somega = Sin(omega)
+    cw = Cos(w)
+    sw = Sin(w)
+    ci = Cos(i)
+    
+    cosfw = (cw * cosf - sw * sinf)
+    sinfw = (sw * cosf + sinf * cw)
+    
+    x = -r * (comega * cosfw - somega * sinfw * ci)
+    y = -r * (somega * cosfw + comega * sinfw * ci)
+    
+    xp = mrprim * x
+    yp = mrprim * y
+    
+    xs = mrsec * x
+    ys = mrsec * y
+end
+
+subroutine spcoords_no_z(t, n, t0, e, a, mprim, msec, w, omega, i, j)
+
+    integer :: j
+    real*8 :: t(j), xs(j), ys(j), x(j), y(j)
+    real*8 :: n, t0, e, a, mprim, msec, w, omega, i, mrprim, mrsec, comega, somega, cw, sw, ci
+    real*8 :: cosf(j), sinf(j), r(j), f(j), cosfw(j), sinfw(j)
+    
+    call solve_kepler(t, n, t0, e, a, r, cosf, sinf, j)
+    
+    mrprim = -msec / (mprim + msec)
+    mrsec = mprim / (mprim + msec)
+    
+    comega = Cos(omega)
+    somega = Sin(omega)
+    cw = Cos(w)
+    sw = Sin(w)
+    ci = Cos(i)
+    
+    cosfw = (cw * cosf - sw * sinf)
+    sinfw = (sw * cosf + sinf * cw)
+    
+    x = -r * (comega * cosfw - somega * sinfw * ci)
+    y = -r * (somega * cosfw + comega * sinfw * ci)
+    
+    xs = mrsec * x
+    ys = mrsec * y
 end
 
 subroutine get_coords(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
@@ -202,5 +293,59 @@ subroutine get_coords(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
     zm = zbc + zm
     
 1 end
+
+subroutine get_impacts(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
+    &t0m, em, Pm, wm, Om, im, mm, j, x, y, xbc, ybc, bp2, bm2, bpm2) bind(C, name="impacts")
+
+    integer (c_int), bind(C) :: j
+    real (c_double), bind(C) :: ms, t0p, ep, Pp, Op, wp, ip, mp 
+    real (c_double), bind(C) :: t0m, em, Pm, Om, wm, im, mm
+    real (c_double), bind(C) :: t(j)
+    real (c_double), bind(C), intent(out), dimension(j) :: bp2, bm2, bpm2
+    real*8 :: np, nm, ap, am
+    real (c_double), bind(C), intent(out), dimension(j) :: xbc, ybc, x, y
+    real*8, dimension(j) :: cosfbc, sinfbc, rbc, cosfwbc, sinfwbc
+    real*8, dimension(j) :: cosfm, sinfm, rm, cosfwm, sinfwm
+    real*8 :: mrp, mrm, comegap, somegap, cwp, swp, cip, comegam, somegam, cwm, swm, cim
+    
+    np = 2 * pi / Pp
+    nm = 2 * pi / Pm
+    ap = (G * (ms + mp + mm) / (np ** 2)) ** o3
+    am = (G * (mp + mm) / (nm ** 2)) ** o3
+    
+    comegap = Cos(Op)
+    somegap = Sin(Op)
+    cwp = Cos(wp)
+    swp = Sin(wp)
+    cip = Cos(ip)
+    
+    comegam = Cos(Om)
+    somegam = Sin(Om)
+    cwm = Cos(wm)
+    swm = Sin(wm)
+    cim = Cos(im)
+    
+    mrp = -mm / (mp + mm)
+    mrm = mp / (mp + mm)
+    
+    call solve_kepler(t, np, t0p, ep, ap, rbc, cosfbc, sinfbc, j)
+    
+    cosfwbc = cwp * cosfbc - swp * sinfbc
+    sinfwbc = swp * cosfbc + sinfbc * cwp
+    xbc = -rbc * (comegap * cosfwbc - somegap * sinfwbc * cip)
+    ybc = -rbc * (somegap * cosfwbc + comegap * sinfwbc * cip)
+    
+    call solve_kepler(t, nm, t0m, em, am, rm, cosfm, sinfm, j)
+    
+    cosfwm = cwm * cosfm - swm * sinfm
+    sinfwm = swm * cosfm + sinfm * cwm
+    x = -rm * (comegam * cosfwm - somegam * sinfwm * cim)
+    y = -rm * (somegam * cosfwm + comegam * sinfwm * cim)
+    
+    bp2 = (xbc + mrm * x)**2 + (ybc + mrm * y)**2
+    bm2 = (xbc + mrp * x)**2 + (ybc + mrp * y)**2
+    bpm2 = x**2 + y**2
+    
+end
 
 end

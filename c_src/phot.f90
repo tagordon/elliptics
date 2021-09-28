@@ -25,6 +25,10 @@ subroutine compute_phis(rp, rm, bp2, bm2, bpm2, bp, bm, bpm, cosphi2, cosphi1, p
           * (bm + bp + bpm) * (bpm - rm - rp) * (bpm + rm - rp) &
           * (bpm - rm + rp) * (bpm + rm + rp)) * denom)
           
+    if (abs(delta) .lt. 1.D-9) then
+        delta = 0.d0
+    end if
+          
     gamma = 0.25 * (bm2 * (bpm2 + rm2 - rp2) + (-bp2 + bpm2)*(bpm2 + rm2 - rp2)) * bm * bpm2 * rm * denom
     cosphi2 = gamma - delta
     cosphi1 = gamma + delta
@@ -198,6 +202,9 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                     bmi, bpi, bpmi, cosphip2, cosphip1, phip1, phip2)
                                 lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, cosphip1, cosphip2, rp, bpi) &
                                       + Arc(c1, c2, phim1, phim2, cosphim1, cosphim2, rm, bmi)) * of0
+                                !lc(i) = (bmi - bpi - bpmi) * (bmi + bpi - bpmi) * (bmi - bpi + bpmi) &
+                                !      * (bmi + bpi + bpmi) * (bpmi - rm - rp) * (bpmi + rm - rp) &
+                                !      * (bpmi - rm + rp) * (bpmi + rm + rp)
                                 goto 1
                             end if
                         else
@@ -231,7 +238,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                     bmi, bpi, bpmi, cosphip2, cosphip1, phip1, phip2)
                                 lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, cosphip1, cosphip2, rp, bpi) &
                                     + Arc(c1, c2, phim1, phim2, cosphim1, cosphim2, rm, bmi)) * of0
-                                lc(i) = 1.1d0
                                 goto 1
                             end if
                         else 
@@ -505,7 +511,7 @@ real*8 function F(c1, c2, phi, cphi, r, b)
             ome_tmp = ome
             eplusf = cel(ome_tmp, o, alpha + beta, beta + alpha * ome * ome)
         else
-            d = phi * o3 * 0.5 - Atan((bpr / bmr) * tanphi2) * o3 &
+            d = o3 * (phi * 0.5 - Atan((bpr / bmr) * tanphi2)) &
                 - (2 * br * o9) * sphi &
                 * Sqrt(1.d0 - b2 - r2 + 2 * br * cphi)
             !s = Asin(sinphi2 / Sqrt(m))
