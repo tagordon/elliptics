@@ -163,7 +163,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     real*8 :: phim, phip, cosphim, cosphip, costhetapm, costheta, cosphi1, cosphi2
     real*8 :: bp2i, bm2i, bpm2i, bpi, bmi, bpmi, rp2, rm2, obpi, obmi
     real*8 :: thetap_bp, thetap_rp, phip_bp, phip_rp, thetam_bp, thetam_rp, phim_bp, phim_rp
-    real*8 :: theta_bp, theta_rp, phi_bp, phi_rp, phi
+    real*8 :: theta_bp, theta_rp, phi_bp, phi_rp, phi, thetam_bm, thetam_rm, phi_bm, phi_rm
     real*8 :: d1, d2, a
     real*8 :: f0, of0
     
@@ -198,12 +198,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                     goto 1
                 else
                     if (bmi + rm .lt. 1.d0) then
-                        lc(i) = 1.d0 - Arc(c1, c2, -pi, pi, rm, bmi) * of0
+                        lc(i) = 1.d0 - 2 * Fcomplete(c1, c2, rm, bmi) * of0
                         goto 1
                     else
-                        call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                - F(c1, c2, theta, rm, bmi)) * of0
+                        call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
+                        lc(i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm) &
+                                - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0)) * of0
                         goto 1
                     end if
                 end if
@@ -214,8 +214,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         goto 1
                     else
                         call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                              - F(c1, c2, theta, rp, bpi)) * of0
+                        lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0) &
+                              - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0)) * of0
                         goto 1
                     end if
                 else
@@ -225,26 +225,28 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                   + Fcomplete(c1, c2, rp, bpi)) * of0
                             goto 1
                         else
-                            call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                            lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                  - F(c1, c2, theta, rm, bmi) &
+                            call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
+                            lc(i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm) &
+                                  - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0) &
                                   - Fcomplete(c1, c2, rp, bpi)) * of0
                             goto 1
                         end if
                     else
                         if (bmi + rm .lt. 1.d0) then
                             call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                            lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                  - F(c1, c2, theta, rp, bpi) & 
+                            lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0) &
+                                  - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0) & 
                                   - Fcomplete(c1, c2, rm, bmi)) * of0
                             goto 1
                         else
                             call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                             call compute_theta(rm, bmi, thetam, phim, thetam_bp, thetam_rp, phim_bp, phim_rp)
                             phi = phip + phim
-                            lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                  - F(c1, c2, thetap, rp, bpi) & 
-                                  - F(c1, c2, thetam, rm, bmi)) * of0
+                            phi_bp = phip_bp + phim_bp
+                            phi_rp = phip_rp + phim_rp
+                            lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0) &
+                                  - F(c1, c2, thetap, rp, bpi, thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0) & 
+                                  - F(c1, c2, thetam, rm, bmi, thetam_bp, thetam_rp, 0.d0, 0.d0, 0.d0)) * of0
                             goto 1
                         end if
                     end if
@@ -256,15 +258,15 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                     lc(i) = 1.d0
                     goto 1
                 else
-                    if (bmi + rm .lt. 1.d0) then
-                        lc(i) = 1.d0 - 2 * Fcomplete(c1, c2, rm, bmi) * of0
-                        goto 1
-                    else
-                        call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                              - F(c1, c2, theta, rm, bmi)) * of0
-                        goto 1
-                    end if
+                    !if (bmi + rm .lt. 1.d0) then
+                    !    lc(i) = 1.d0 - 2 * Fcomplete(c1, c2, rm, bmi) * of0
+                    !    goto 1
+                    !else
+                    call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
+                    lc(i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
+                            - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0)) * of0
+                    goto 1
+                    !end if
                 end if
             else
                 if (bmi .gt. rm + 1.d0) then
@@ -273,8 +275,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         goto 1
                     else
                         call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                              - F(c1, c2, theta, rp, bpi)) * of0
+                        lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                              - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0)) * of0
                         goto 1
                     end if
                 else
@@ -287,8 +289,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                     phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
-                                lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, rp, bpi) &
-                                    + Arc(c1, c2, phim1, phim2, rm, bmi)) * of0
+                                lc(i) = 1.d0 - (Arc(c1, c2, phip1, phip2, rp, bpi, &
+                                                    0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                                    0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm) &
+                                                + Arc(c1, c2, phim1, phim2, rm, bmi, &
+                                                      0.d0, phim1_rp, 0.d0, phim1_rm, phim1_bpm, &
+                                                      0.d0, phim2_rp, 0.d0, phim2_rm, phim2_bpm)) * of0
                                 goto 1
                             end if
                         else 
@@ -298,11 +304,17 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                 call compute_phis(rp, rm,  bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                     phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
-                                call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(i) = (2 * Fstar(c1, c2, pi - phi) &
-                                  - Arc(c1, c2, -theta, phim2, rm, bmi) &
-                                  - Arc(c1, c2, phim1, theta, rm, bmi) &
-                                  - Arc(c1, c2, phip1, phip2, rp, bpi)) * of0
+                                call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
+                                lc(i) = (2 * Fstar(c1, c2, pi - phi, 0.d0, 0.d0, phi_bm, phi_rm, 0.d0) &
+                                  - Arc(c1, c2, -theta, phim2, rm, bmi, &
+                                        0.d0, , 0.d0, -theta_bm, -theta_rm, 0.d0, &
+                                        0.d0, phim2_rp, 0.d0, phim2_rm, phim2_bpm) &
+                                  - Arc(c1, c2, phim1, theta, rm, bmi, &
+                                        0.d0, phim1_rp, 0.d0, phim1_rm, phim1_bpm, &
+                                        0.d0, 0.d0, theta_bm, theta_rm, 0.d0) &
+                                  - Arc(c1, c2, phip1, phip2, rp, bpi, &
+                                        0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                        0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm)) * of0
                                 goto 1
                             end if
                         end if
@@ -310,18 +322,24 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                         if (bmi + rm .lt. 1.d0) then 
                             if (bpmi + rm .lt. rp) then
                                 call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                    - F(c1, c2, theta, rp, bpi)) * of0
+                                lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                    - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0)) * of0
                                 goto 1
                             else
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                     phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
                                 call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(i) = (2 * Fstar(c1, c2, pi - phi) &
-                                  - Arc(c1, c2, -theta, phip2, rp, bpi) &
-                                  - Arc(c1, c2, phip1, theta, rp, bpi) &
-                                  - Arc(c1, c2, phim1, phim2, rm, bmi)) * of0
+                                lc(i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                  - Arc(c1, c2, -theta, phip2, rp, bpi, &
+                                        -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
+                                        0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm) &
+                                  - Arc(c1, c2, phip1, theta, rp, bpi, &
+                                        0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                        theta_bp, theta_rp, 0.d0, 0.d0, 0.d0) &
+                                  - Arc(c1, c2, phim1, phim2, rm, bmi, & 
+                                        0.d0, phim1_rp, 0.d0, phim1_rm, phim1_bpm, &
+                                        0.d0, phim2_rp, 0.d0, phim2_rm, phim2_bpm)) * of0
                                 goto 1
                             end if
                         else
@@ -329,30 +347,62 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             obmi = 1.d0 / bmi
                             if (bpmi + rm .lt. rp) then
                                 call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                    - F(c1, c2, theta, rp, bpi)) * of0
+                                lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                    - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0)) * of0
                                 goto 1
                             else
-                                costhetapm = ((bpi + bpmi) * (bpi - bpmi) + bmi * bmi) * 0.5 * obpi * obmi
-                                cosphim = ((bmi - rm) * (bmi + rm) + 1.d0) * 0.5 * obmi
-                                cosphip = ((bpi - rp) * (bpi + rp) + 1.d0) * 0.5 * obpi
-                                thetapm = Acos(costhetapm)
-                                phim = Acos(cosphim)
-                                phip = Acos(cosphip)
+                                !costhetapm = ((bpi + bpmi) * (bpi - bpmi) + bmi * bmi) * 0.5 * obpi * obmi
+                                !cosphim = ((bmi - rm) * (bmi + rm) + 1.d0) * 0.5 * obmi
+                                !cosphip = ((bpi - rp) * (bpi + rp) + 1.d0) * 0.5 * obpi
+                                
+                                compute_theta(rp,  bpi, theta, phip, theta_bp, theta_rp, phip_bp, phip_rp)
+                                compute_theta(rm,  bmi, theta, phim, theta_bm, theta_rm, phim_bm, phim_rm)
+                                
+                                a = bm
+                                b = bp
+                                c = bpm
+                                if (b .gt. a) then
+                                    tmp = b
+                                    b = a
+                                    a = tmp
+                                end if
+                                if (c .gt. b) then
+                                    tmp = c
+                                    c = b
+                                    b = tmp
+                                end if
+                                if (b .gt. a) then
+                                    tmp = b
+                                    b = a
+                                    a = tmp
+                                end if
+                                area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+                                thetapm = Atan2(area, (bm - bp) * (bm + bp) + bpm2)
+                                thetapm_bpm = bm * ((bpm + bm) * (bm - bpm) - bp * bp) / (2 * area * bpm * bp)
+                                
+                                !thetapm = Acos(costhetapm)
+                                !phim = Acos(cosphim)
+                                !phip = Acos(cosphip)
                                 if (thetapm + phim .lt. phip) then
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                             phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                             phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
                                         call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                                         if (phip2 .gt. theta) then
-                                            lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                                - F(c1, c2, theta, rp, bpi)) * of0
+                                            lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                                - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0)) * of0
                                             goto 1
                                         else
-                                            lc(i) = (2 * Fstar(c1, c2, pi - thetap) &
-                                              - Arc(c1, c2, -thetapstar, phip2, rp, bpi) &
-                                              - Arc(c1, c2, phip1, thetapstar, rp, bpi) &
-                                              - Arc(c1, c2, phim1, phim2, rm, bmi)) * of0
+                                            lc(i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                              - Arc(c1, c2, -theta, phip2, rp, bpi, &
+                                                    -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
+                                                    0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm) &
+                                              - Arc(c1, c2, phip1, theta, rp, bpi, &
+                                                    0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                                    theta_bp, theta_rp, 0.d0, 0.d0, 0.d0) &
+                                              - Arc(c1, c2, phim1, phim2, rm, bmi, &
+                                                    0.d0, phim1_rp, 0.d0, phim1_rm, phim1_bpm, &
+                                                    0.d0, phim2_rp, 0.d0, phim2_rm, phim2_bpm)) * of0
                                              goto 1
                                         end if
                                 else if (thetapm + phip .lt. phim) then
@@ -361,15 +411,21 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                             phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                             phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
                                         call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                        lc(i) = (2 * Fstar(c1, c2, pi - phi) &
-                                            - Arc(c1, c2, -theta, phim2, rm, bmi) &
-                                            - Arc(c1, c2, phim1, theta, rm, bmi) & 
-                                            - Arc(c1, c2, phip1, phip2, rp, bpi)) * of0
+                                        lc(i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
+                                            - Arc(c1, c2, -theta, phim2, rm, bmi, &
+                                                  0.d0, 0.d0, -theta_bm, -theta_rm, 0.d0, &
+                                                  0.d0, phim2_rp, 0.d0, phim2_rm, phim2_bpm) &
+                                            - Arc(c1, c2, phim1, theta, rm, bmi, 
+                                                  0.d0, phim1_rp, 0.d0, phim1_rm, phim1_bpm, &
+                                                  0.d0, 0.d0, theta_bm, theta_rm, 0.d0) & 
+                                            - Arc(c1, c2, phip1, phip2, rp, bpi, &
+                                                  0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                                  0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm)) * of0
                                         goto 1
                                     else
-                                        call compute_theta(rm, bmi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                          - F(c1, c2, theta, rm, bmi)) * of0
+                                        call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
+                                        lc(i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
+                                          - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0)) * of0
                                         goto 1
                                     end if
                                 else
@@ -381,35 +437,49 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                     d2 = rm2 + bm2i - 2 * rm * bmi * cosphi2
                                     if (d1 .gt. 1.d0) then
                                         call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                                        call compute_theta(rm, bmi, thetam, phim, thetam_bp, thetam_rp, phim_bp, phim_rp)
+                                        call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                                         phi = phip + phim
-                                        lc(i) = 2 * (Fstar(c1, c2, pi - phi) &
-                                          - F(c1, c2, thetap, rp, bpi) & 
-                                          - F(c1, c2, thetam, rm, bmi)) * of0
+                                        lc(i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
+                                          - F(c1, c2, thetap, rp, bpi, thetpa_bp, thetap_rp, 0.d0, 0.d0, 0.d0) & 
+                                          - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_rm, thetam_rp, 0.d0)) * of0
                                         goto 1
                                     else if (d2 .lt. 1.d0) then
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                             phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                             phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
-                                        call compute_theta(rm, bmi, thetam, phim, thetam_bp, thetam_rp, phim_bp, phim_rp)
+                                        call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                                         call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                                        phi = phim + phim
-                                        lc(i) = (2 * Fstar(c1, c2, pi - phi) &
-                                            - Arc(c1, c2, -thetam, -phim1, rm, bmi) & 
-                                            - Arc(c1, c2, -phim2, thetam, rm, bmi) &
-                                            - Arc(c1, c2, phip1, thetap, rp, bpi) &
-                                            - Arc(c1, c2, -thetap, phip2, rp, bpi)) * of0
+                                        phi = phip + phim
+                                        lc(i) = (2 * Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
+                                            - Arc(c1, c2, -thetam, -phim1, rm, bmi, &
+                                                  0.d0, 0.d0, -thetam_bm, -thetam_rm, 0.d0, &
+                                                  0.d0, -phim1_rp, 0.d0, -phim1_rm, -phim1_bpm) & 
+                                            - Arc(c1, c2, -phim2, thetam, rm, bmi, 
+                                                  0.d0, -phim2_rp, 0.d0, -phim2_rm, -phim2_bpm, &
+                                                  0.d0, 0.d0, -theta_bm, -theta_rm, 0.d0) &
+                                            - Arc(c1, c2, phip1, thetap, rp, bpi, &
+                                                  0.d0, phip1_rp, 0.d0, phip1_rm, phip1_bpm, &
+                                                  thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0) &
+                                            - Arc(c1, c2, -thetap, phip2, rp, bpi, &
+                                                  -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, 
+                                                  0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm)) * of0
                                         goto 1
                                     else
+                                        ! this is a place to check when things are broken later
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                             phim1_bpm, phim1_rp, phim1_rm, phim2_bpm, phim2_rp, phim2_rm, phip1_bpm, &
                                             phip1_rp, phip1_rm, phip2_bpm, phip2_rp, phip2_rm)
                                         call compute_theta(rm, bmi, thetam, phim, thetam_bp, thetam_rp, phim_bp, phim_rp)
                                         call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                                         phi = 0.5 * (phip + phim + thetapm)
-                                        lc(i) = (2 * Fstar(c1,c2, pi - phi) & 
-                                            - Arc(c1, c2, -phim2, thetam, rm, bmi) & 
-                                            - Arc(c1, c2, -thetap, phip2, rp, bpi)) * of0
+                                        lc(i) = (2 * Fstar(c1,c2, pi - phi, -0.5 * phip_bp, -0.5 * phip_rp, &
+                                                           -0.5 * phim_bp, -0.5 * phim_rp, -0.5 * thetapm_bpm) & 
+                                            - Arc(c1, c2, -phim2, thetam, rm, bmi, 
+                                                  0.d0, -phim2_rp, 0.d0, -phim2_rm, -phim2_bpm, &
+                                                  0.d0, 0.d0, thetam_bm, thetam_rm, 0.d0) & 
+                                            - Arc(c1, c2, -thetap, phip2, rp, bpi, &
+                                                  -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
+                                                  0.d0, phip2_rp, 0.d0, phip2_rm, phip2_bpm)) * of0
                                         goto 1
                                     end if
                                 end if
@@ -424,34 +494,43 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     
 end
 
-real*8 function Arc(c1, c2, phi1, phi2, r, b)
+real*8 function Arc(c1, c2, phi1, phi2, r, b, phi1_b, phi1_r, phi2_b, phi2_r)
 
     real*8 :: phi1, phi2, r, b, c1, c2
     real*8 :: const, lin, quad
         
     if (phi1 < 0) then
         if (phi2 > 0) then
-            Arc = F(c1, c2, phi2, r, b) + F(c1, c2, -phi1, r, b)
+            Arc = F(c1, c2, phi2, r, b) &
+                + F(c1, c2, -phi1, r, b, phi1_b, phi1_r)
             return
         else
             if (phi2 < phi1) then
-                Arc = 2 * Fcomplete(c1, c2, r, b) + F(c1, c2, -phi1, r, b) - F(c1, c2, -phi2, r, b)
+                Arc = 2 * Fcomplete(c1, c2, r, b) &
+                    + F(c1, c2, -phi1, r, b, -phi1_b, -phi1_r) &
+                    - F(c1, c2, -phi2, r, b, -phi2_b, -phi2_r)
                 return
             else
-                Arc = -F(c1, c2, -phi2, r, b) + F(c1, c2, -phi1, r, b)
+                Arc = -F(c1, c2, -phi2, r, b, -phi2_b, -phi2_r) &
+                    + F(c1, c2, -phi1, r, b, -phi1_b, -phi1_r)
                 return
             end if
         end if
     else
         if (phi2 < 0) then
-            Arc = 2 * Fcomplete(c1, c2, r, b) - F(c1, c2, phi1, r, b) - F(c1, c2, -phi2, r, b)
+            Arc = 2 * Fcomplete(c1, c2, r, b) &
+                - F(c1, c2, phi1, r, b, phi1_b, phi1_r) &
+                - F(c1, c2, -phi2, r, b, -phi2_b, -phi2_r)
             return
         else
             if (phi2 < phi1) then
-                Arc = 2 * Fcomplete(c1, c2, r, b) + F(c1, c2, phi2, r, b) - F(c1, c2, phi1, r, b)
+                Arc = 2 * Fcomplete(c1, c2, r, b) &
+                    + F(c1, c2, phi2, r, b, phi2_b, phi2_r) &
+                    - F(c1, c2, phi1, r, b, phi1_b, phi1_r)
                 return
             else
-                Arc = F(c1, c2, phi2, r, b) - F(c1, c2, phi1, r, b)
+                Arc = F(c1, c2, phi2, r, b, phi2_b, phi2_r) &
+                    - F(c1, c2, phi1, r, b, phi1_b, phi1_r)
                 return
             end if
         end if
@@ -476,6 +555,7 @@ end function
 real*8 function Fcomplete(c1, c2, r, b)
 
     real*8 :: c1, c2, r, b, Fc, Fq, Fl
+    real*8 :: Fc_r, Fq_r, Fl_r, Fc_b, Fq_b, Fl_b
     real*8 :: o, ome
     real*8 :: gamma, n, m, x, y, tans, sphi, br, bmr, bpr
     real*8 :: r2, b2, apb, apbo
@@ -487,11 +567,18 @@ real*8 function Fcomplete(c1, c2, r, b)
     bpr = b + r
     br = b * r
     
-    Fc = r2 * pihalf     
+    Fc = r2 * pihalf  
+    Fc_r = r * pi
+    Fc_b = 0.d0
+    
     Fq = pihalf * r2 * (b2 + 0.5 * r2) 
+    Fq_r = pi * r * (b2 + r2)
+    Fq_b = pi * r2 * b
     
     if (-c1 .eq. 2 * c2) then
         Fl = 0.d0
+        Fl_r = 0.d0
+        Fl_b = 0.d0
         goto 3
         
     else
@@ -499,6 +586,8 @@ real*8 function Fcomplete(c1, c2, r, b)
             if (r == 0.5) then
             
                 Fl = pisixth + 2.d0 * o9
+                Fl_r = 0.d0
+                Fl_b = 0.d0
                 goto 3
                 
             else
@@ -541,6 +630,8 @@ real*8 function Fcomplete(c1, c2, r, b)
     
     if (b .eq. 0.d0) then
         Fl = pithird * (1.d0 - (1.d0 - r2) ** (1.5))
+        Fl_r = -pi * r * Sqrt(1 - r2)
+        Fl_b = 0.d0
         goto 3
     end if
     
@@ -552,8 +643,8 @@ end function
 real*8 function F(c1, c2, phi, r, b)
     
     real*8 :: c1, c2, phi, cphi, r, b, Fc, Fq, Fl
-    real*8 :: o
-    real*8 :: gamma, d, s, n, m, x, y, ome, tans, sphi, br, bmr, bpr
+    real*8 :: Fc_r, Fc_b, Fc_phi, Fq_r, Fq_b, Fq_phi, Fl_r, Fl_b, Fl_phi
+    real*8 :: gamma, d, s, n, m, x, y, ome, tans, sphi, br, bmr, bpr, o
     real*8 :: r2, b2, tanphi2, sinphi2, apb, apbo
     real*8 :: ellippi, eplusf
     
@@ -573,12 +664,26 @@ real*8 function F(c1, c2, phi, r, b)
     end if
         
     Fc = 0.5 * (r2 * phi - br * sphi)
+    Fc_phi = 0.5 * (r2 - br * cphi)
+    Fc_b = -0.5 * r * sphi
+    Fc_r = 0.5 * (2 * r *phi - b * sphi)
+    
     Fq = r2 * r2 * 0.25 * (phi - sphi * cphi * (4 * o3 * cphi * cphi - 1.d0)) &
         + b * (br * 0.5 * (phi * r - b * sphi * o3) &
         + r2 * r * sphi * 0.25 * ((4 * cphi * cphi - 1.d0) * o3 - 3.d0))
+    Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi &
+        - 3 * r * (2 * b2 + r2 + br * Cos(3 * phi)) + r2 * r * Cos(4 * phi)))
+    Fq_r = b * (b * (r * phi - (b * sphi) * o3 * 0.5) &
+        + 0.25 * r2 * (Sin(3 * phi) - 9 * sphi)) &
+        + r2 * r* (phi - Sin(4*phi) * o3 * 0.25)
+    Fq_b = b * (r2 * phi - br * sphi * 0.5) &
+        + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
         
     if (-c1 .eq. 2 * c2) then
         Fl = 0.d0
+        Fl_phi = 0.d0
+        Fl_r = 0.d0
+        Fl_b = 0.d0
         goto 2
         
     else
@@ -587,6 +692,9 @@ real*8 function F(c1, c2, phi, r, b)
             
                 Fl = phi * o3 * 0.5 + o3 * sinphi2 &
                     * (1.d0 - sinphi2 * sinphi2 * o3)
+                Fl_phi = 0.5 * o3 * (1.d0 + 3 * Cos(2 * phi) + Cos(6 * phi))
+                Fl_r = 0.d0
+                Fl_b = 0.d0
                 goto 2
                 
             else
@@ -667,6 +775,8 @@ real*8 function F(c1, c2, phi, r, b)
         
         if (b .eq. 0.d0) then
             Fl = phi * (1.d0 - (1.d0 - r2) ** (1.5)) * o3
+            Fl_phi = (1.d0 - (1.d0 - r2) ** (1.5)) * o3
+            Fl_r = -pi * r * Sqrt(1.d0 - r2)
             goto 2
         end if
         
