@@ -342,8 +342,8 @@ subroutine get_impacts(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
     x = -rm * (comegam * cosfwm - somegam * sinfwm * cim)
     y = -rm * (somegam * cosfwm + comegam * sinfwm * cim)
     
-    bp2 = (xbc + mrm * x)**2 + (ybc + mrm * y)**2
-    bm2 = (xbc + mrp * x)**2 + (ybc + mrp * y)**2
+    bm2 = (xbc + mrm * x)**2 + (ybc + mrm * y)**2
+    bp2 = (xbc + mrp * x)**2 + (ybc + mrp * y)**2
     bpm2 = x**2 + y**2
     
 end
