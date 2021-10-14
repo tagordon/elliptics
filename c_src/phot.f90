@@ -726,7 +726,8 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     real*8 :: gamma, d, s, n, m, x, y, ome, tans, sphi, br, bmr, bpr, o
     real*8 :: r2, b2, tanphi2, sinphi2, apb, apbo, alpha, beta
     real*8 :: d_phi, d_r, d_b, eplusf_phi, eplusf_r, eplusf_b, lpm, lpmo
-    real*8 :: ellippi, eplusf, fpluspi, fpluspi_r, fpluspi_b
+    real*8 :: ellippi, eplusf, ellipf, apb_r, apbo_r, eplusf_m
+    real*8 :: m_r, m_b, n_r, n_b, ellippim, ellippi_m, ellippi_n, ellippi_r, b_r
     
     r2 = r * r
     b2 = b * b
@@ -798,13 +799,21 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 beta = (1.d0 - 4 * r2) * o9
                 
                 m = 4 * r2
+                m_r = 8 * r
                 apb = m * o9
                 apbo = o9 * 2 * (1.d0 - m) * (1.d0 - 0.5 * m)
+                apb_r = 8 * r * o9
+                apbo_r = apb_r * (8 * r2 - 1.d0)
+                lpm = (4.d0 - 1.d0 / r2) * o9 * 0.125
+                lpmo = (32.d0 * r2 + 5.d0 / r2 - 28.d0) * o9 * 0.125
                 
                 d = phi * o3 * 0.5 - 2 * r2 * sphi * Sqrt(1.d0 + 2 * r2 * (cphi - 1.d0)) * o9
                 
                 d_phi = 0.5 * o3 - (r2 * ((2.d0 - 4 * r2) * cphi + r2 * (1.d0 + 3*Cos(2 * phi)))) &
                         / (9 * Sqrt(1.d0 - 2 * r2 + 2 * r2 * cphi))
+                        
+                d_r = (-4 * r * (1.d0 - 3 * r2 + 3 * r2 * cphi) * sphi) &
+                    / (9 * Sqrt(1.d0 - 2 * r2 + 2 * r2 * cphi))
                 
                 Fl_phi = (-3.d0 + 4 * r2 + 4 * m * (1.d0 - 2 * r2) * sphi * sphi) &
                        / (9 * Sqrt(1.d0 - m * sphi * sphi))
@@ -812,13 +821,11 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 Fl_phi = Fl_phi + d_phi
                 
                 eplusf = el2(Tan(phi * 0.5), Sqrt(1.d0 - m), apb, apbo)
-                eplusf_phi = (4 * r2 * (1.d0 + r * (r2 - 2 * r2) * sphi) - 3.d0) &
-                            / (9.d0 * Sqrt(1.d0 - 4 * r2* sphi))
-                eplusf_r = el2(Tan(phi * 0.5), Sqrt(1.d0 - m), 12 * r2, 36 * r2 - 48 * r2 * r2 - 3.d0)
-                eplusf_r = eplusf_r / (9 * r) - (2 * r * Sin(2 * phi)) &
-                        / (9 * Sqrt(1.d0 - 4 * r2 * sphi * sphi))
+                eplusf_m = el2(Tan(phi * 0.5), Sqrt(1.d0 - m), lpm, lpmo)
+                eplusf_r = el2(Tan(phi * 0.5), Sqrt(1.d0 - m), apb_r, apbo_r)
                         
                 Fl = eplusf + d
+                Fl_r = eplusf_m * m_r + eplusf_r + b_r
                 goto 2
                 
             end if
@@ -840,7 +847,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 + ((3*(1.d0 - 2*r)*sinphi2) / (1 + 2 * r * (b + 2*r - 2.d0) - 2 * br * cphi) &
                 - (3 + 2 * (2 - 5*r) * r + 6 * br * cphi) * sphi)/y)) * o9
                 
-            Fl_phi = ((6 * Sqrt(1 - 4*b*r)) / (2*r - 1.d0) &
+            Fl_phi = ((6 * Sqrt(1 - 4*br)) / (2*r - 1.d0) &
                 + 2 * Atan((2*r - 1.d0) / Tan(phi * 0.5)) &
                 - 8 * y * cphi * (3.d0 + 2 * (2.d0 - 5*r) * r + 2 * br * cphi) &
                 + (12 * y *(2*r - 1.d0)*Cos(phi * 0.5)) / (-2 * r * (-2 + b + 2 * r - 2.d0) + 2 * br * cphi - 1.d0) &
@@ -854,51 +861,84 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             apb = (r2 * (12.d0 - 6 * r2) + b * (b * (2 * b * r - 10 * r2) + r * (14 * r2 - 8.d0)) - 3.d0) * y
             apbo = (1.d0 + b2 * (b2 - 2 * r2 - 5.d0) + r2 * (1.d0 + r2)) * y
             gamma = bpr * y * 3 / bmr
+            lpm = (3 * (bmr - 1.d0) * (bmr + 1.d0) * bpr &
+                + 4 * b * bmr * r * (3.d0 + 2 * r * (b2 * b + 5 * b2 * r &
+                + 3 * r * (-2.d0 + r2) + b * (-4.d0 + 7 * r2)))) &
+                / (36 * (bmr - 1.d0) * (bmr + 1.d0) * bmr * Sqrt(br))
+            lpmo = (3 * b * (-1.d0 + b2) + (-3.d0 + b2 * (5.d0 - 2 * b2)**2.d0) * r &
+                + b * (-31.d0 - 44 * b2 + 12 * b2 * b2) * r2 + (3.d0 - 28 * b2 + 56 * b2 * b2) * r2 * r &
+                + r2 * r2 * (4 * b * (23.d0 + 10 * b2) - 60 * b2 * r - 52 * br * r)) &
+                / (36 * (bmr + 1.d0) * (bmr - 1.d0) * bmr * Sqrt(br))
+            apb_r = (b * (-1.d0 + 2 * r * (-4 * b + b2 * b - 6 * r + 5 * b2 * r + 35 * b * r2 + 7 * r2 * r))) & 
+                / (12 * br**1.5)
+            apbo_r = (b * (-7.d0 - b2 * b2 + 4 * b2 * br + 3 * r2 + 7 * r2 * r2 + b2 * (5.d0 - 6 * r2) &
+                + 4 * br * (-4.d0 + 35 * r2))) / (36 * br**1.5)
             
-            m = (1 - bmr) * (1 + bmr) / (4 * r * b)
+            m = (1.d0 - bmr) * (1.d0 + bmr) / (4 * br)
+            m_r = ((b + 1.d0) * (b - 1.d0) - r2) / (4 * br)
             n = 1.d0 - 1.d0 / (bmr * bmr)
+            n_r = -2.d0 / (bmr**3.d0)
             ome = Sqrt((b + r - 1.d0) * (b + r + 1.d0) / (4 * b * r))
             
-            Fl_phi = ((3.d0 + r2 * (-12.d0 + 6 * r2) + b2 * (2 * br + 10 * r2) &
-                        + br * (-8.d0 + 14 * r2)) - 2 * Sqrt(br) * (-4.d0 + b2 + 7 * r2) &
-                        * (-1.d0 + m * sphi * sphi) * o3 * o3 &
-                        - (3 * bpr) / ((18 * bmr * Sqrt(br) * (-1.d0 + n * sphi * sphi)))) &
-                        / Sqrt(1 - m * sphi * sphi)
+            ! This one was rough and might be worth checking if things don't work later 
+            Fl_phi = (3 + r2 * (-12.d0 + 6 * r2) + b * (b * (2 * br + 10 * r2) + r * (-8.d0 + 14 * r2)) &
+                + 4 * sphi * sphi + (3 * bmr) / (br * (1.d0 + (1.d0 / br - 1.d0) * (1.d0 / br + 1.d0) * sphi * sphi)) &
+                + r2 * (-11 * sphi * sphi + 7 * r2 * sphi * sphi) &
+                + b * (b * (4 * br + (-5.d0 + b2 - 2 * br + 8 * r2) * sphi * sphi) &
+                + r * (-16.d0 + 8 * sphi * sphi + r2 * (28.d0 - 14 * sphi * sphi)))) &
+                / (9 * Sqrt(4 * br + (bmr + 1.d0) * (bmr - 1.d0) * sphi * sphi))
             
             if (abs(sinphi2 / Sqrt(m) - 1.D0) .lt. 1.D-12) then
             
                 d = phi * o3 * 0.5 - Atan2(bpr * sinphi2, bmr * Cos(phi * 0.5)) * o3
                 
                 d_phi = (r * (r - b * cphi)) / (3 * (b2 + r2 - 2 * br * cphi))
-                      
-                Fl_phi = Fl_phi + d_phi
-                      
                 d_r = -((b * tanphi2) / (3 * (1.d0 + b2) * bmr * bmr &
                     + 3 * r * tanphi2 * (2 * b * bmr + r * tanphi2)))
-                    
                 d_b = (r * tanphi2 / (bmr * bmr) - 1.d0) &
                     / (3 * (1.d0 + (b + r * tanphi2 / bmr)**2.d0))
                 
                 o = 1.d0
                 ellippi = cel((ome), 1.d0 - n, (o), (o))
-                eplusf = cel((ome), (o), apb, apbo)
+                ellippim = cel((ome), 1.d0 - m, (o), (o))
+                ellippi_m = (ellippim - ellippi) / (2 * (m - n))
+                eplusf = cel((ome), (o), m / n, m / n + m - 1.d0)
+                ellippi_n = (eplusf + ellippi * (n - m / n)) * (bmr ** 3.d0 *  Sqrt(br)) &
+                    / (3 * (bmr - 1.d0) * (bmr + 1.d0) * bpr)
+                ellippi_r = ellippi * (b * (4 * br + (r + b) * (r - b))) / (12 * bmr * bmr * br**1.5)
                 
+                eplusf = cel((ome), (o), apb, apbo)
+                eplusf_m = cel((ome), (o), lpm, lpmo)
+                eplusf_r = cel((ome), (o), apb_r, apbo_r)
+                
+                Fl_phi = Fl_phi + d_phi
+                Fl_r = (eplusf_m + ellippi_m) * m_r + ellippi_n * n_r + ellippi_r + eplusf_r + b_r
             else
             
                 d = o3 * (phi * 0.5 - Atan2(bpr * sinphi2, bmr * Cos(phi * 0.5))) &
                     - (2 * br * o9) * sphi * Sqrt(1.d0 - (b2 + r2) + 2 * br * cphi)
-                
-                d_phi = o3 * o3 * (0.5 * 3.d0 + (br * (-2 * (-1.d0 + b2 + r2) * cphi &
-                        + br * (3.d0 + Cos(2 * phi)))) / Sqrt(1.d0 - b2 - r2 + 2 * br * cphi) &
-                        +  (-3 * bmr * bpr * Cos(0.5 * phi)**2 * (sinphi2 - 3 * Sin((3 * phi) * 0.5))) &
-                        / (bmr * bmr * (1.d0 + cphi) + 2 * bpr * bpr * sphi**4.d0))
-                        
-                Fl_phi = Fl_phi + d_phi    
-                
+                d_phi = (r * (r - b * cphi)) / (3 * (b2 + r2 - 2 * br * cphi)) &
+                    + (br * (2 * ((b - 1.d0) * (b + 1.d0) + r2) * cphi - br * (1.d0 + 3 * Cos(2 * phi)))) &
+                    / (9 * Sqrt((1.d0 - b) * (1.d0 + b) - r2 + 2 * br * cphi))
+                                        
                 tans = 1.d0 / Sqrt(m / (sinphi2 * sinphi2) - 1.d0)
                 
                 ellippi = el3((tans), (ome), 1.d0 - n)
+                ellippim = el3((tans), (ome), 1.d0 - m)
+                ellippi_m = (ellippim - ellippi) / (2 * (m - n))
+                eplusf = el2((tans), (ome), m / n, m / n + m - 1.d0)
+                ellippi_n = (eplusf + ellippi * (n - m / n) &
+                    - (n * Sqrt(1 - m * sphi * sphi) * Sin(2 * phi)) &
+                    / (2 * (1 - n * sphi * sphi))) * (bmr ** 3.d0 *  Sqrt(br)) &
+                    / (3 * (bmr - 1.d0) * (bmr + 1.d0) * bpr)
+                ellippi_r = ellippi * (b * (4 * br + (r + b) * (r - b))) / (12 * bmr * bmr * br**1.5)
+                
                 eplusf = el2((tans), (ome), apb, apbo)
+                eplusf_m = el2((tans), (ome), lpm, lpmo)
+                eplusf_r = el2((tans), (ome), apb_r, apbo_r)
+                
+                Fl_phi = Fl_phi + d_phi  
+                Fl_r = (eplusf_m + ellippi_m) * m_r + ellippi_n * n_r + ellippi_r + eplusf_r + b_r
                 
             end if
             
