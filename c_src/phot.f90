@@ -605,7 +605,8 @@ function Fcomplete(c1, c2, r, b, pflag)
     real*8 :: r2, b2, apb, apbo
     real*8 :: ellippi, eplusf
     real*8 :: ellippi_r, eplusf_r, alpha, alpha_r, beta, beta_r
-    real*8 :: u, v, p, q, m_r, n_r, gamma_r
+    real*8 :: ur, vr, pr, qr, m_r, n_r, gamma_r
+    real*8 :: ub, vb, pb, qb, m_b, n_b, gamma_b, alpha_b, beta_b, eplusf_b, ellippi_b
     
     r2 = r * r
     b2 = b * b
@@ -647,14 +648,14 @@ function Fcomplete(c1, c2, r, b, pflag)
                 beta = (1.d0 - 4 * r2) * o9
                 beta_r = -8 * r * o9
                 
-                u = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
+                ur = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
                     + m * (m_r - m_r * n)) &
                     / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
-                v = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta)) &
+                vr = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta)) &
                     / (2 * m * (n - 1.d0) * n)
                 
                 eplusf = cel(Sqrt(1.d0 - m), o, alpha + beta, alpha * (1.d0 - m) + beta)
-                eplusf_r = cel((ome), (o), u + v, u * (1.d0 - m) + v)
+                eplusf_r = cel((ome), (o), ur + vr, ur * (1.d0 - m) + vr)
                 
                 Fl = eplusf + pisixth
                 Fl_r = eplusf_r 
@@ -687,40 +688,60 @@ function Fcomplete(c1, c2, r, b, pflag)
             alpha = (7 * r2 + b2 - 4.d0) * x * o9
             alpha_r = (b * (b2 - 15 * br) + 3 * r * (6.d0 - 7 * r2) + b * (-4.d0 + 35 * r2)) &
                     / (9 * x)
+            alpha_b = (6 * b - 3 * b2 * b - 4 * r + 5 * b2 * r - 9 * b * r2 + 7 * r2 * r) / (9 * x)
             
             beta = (r2 * r2 + b2 * b2 + r2 - b2 * (5.d0 + 2 * r2) + 1.d0) / (9.d0 * x)
             beta_r = (2 * (1.d0 - bmr) * (1.d0 + bmr) * r * (1.d0 - 2 * b2 + 2 * r2) &
-                    - bmr * (1.d0 + b2 * b2 + r2 + r2 * r2 &
-                    - b2 * (5.d0 + 2 * r2))) / (9 * x**3.d0)
+                   - bmr * (1.d0 + b2 * b2 + r2 + r2 * r2 &
+                   - b2 * (5.d0 + 2 * r2))) / (9 * x**3.d0)
+            beta_b = -(3 * b2 * b2 * b + r - 7 * b2 * b2 * r &
+                   + r2 * r + r2 * r2 * r + b2 * b * (-9.d0 + 2 * r2) &
+                   + 3 * b2 * r * (5.d0 + 2 * r2) + b * (9.d0 - 7 * r2 - 5 * r2 * r2)) & 
+                    / (9 * x**3.d0)
                     
             gamma = bpr / (bmr * 3.d0 * x)
             gamma_r =  -o3 * (b * (3 * b2 - 5 * br) + r2 * r + b * (-2.d0 + r2)) &
                     / (bmr * bmr * ((1.d0 - bmr) * (1.d0 + bmr))**1.5)
+            gamma_b = -o3 * (2 * r - bmr * bmr * (b + 3 * r)) &
+                    / (bmr * bmr * ((1.d0 - bmr) * (1.d0 + bmr))**1.5)
             
             n = -4 * r * b / (bmr * bmr)
             n_r = -4 * b * bpr  / (bmr * bmr * bmr)
+            n_b = 4 * r * bpr / (bmr * bmr * bmr)
             
             m = 4 * r * b / ((1.d0 - bmr) * (1.d0 + bmr))
             m_r = (4 * b * ((1.d0 + b) * (1.d0 - b) + r2)) / ((bmr - 1.d0) * (bmr + 1.d0))**2.d0
+            m_b = (4 * r * ((1.d0 + r) * (1.d0 - r) + b2)) / ((bmr - 1.d0) * (bmr + 1.d0))**2.d0
             
-            u = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
+            ur = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
                 + m * (m_r - m_r * n + (m - 1.d0) * n_r) * gamma) &
                 / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
-            v = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
+            vr = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
                 / (2 * m * (n - 1.d0) * n)
-            q = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
+            qr = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
                 + n * (m_r - m_r * n + n * n_r) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
+                
+            ub = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_b * alpha + 2 * m * alpha_b) - m_b * beta) &
+                + m * (m_b - m_b * n + (m - 1.d0) * n_b) * gamma) &
+                / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
+            vb = (2 * beta_b * m * (n - 1.d0) * n - m_b * (n - 1.d0) * n * (alpha + beta) + m * n_b * gamma) &
+                / (2 * m * (n - 1.d0) * n)
+            qb = (2 * gamma_b * (m - n) * (n - 1.d0) * n - m * n_b * gamma &
+                + n * (m_b - m_b * n + n * n_b) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
             
             ome = Sqrt(1.d0 - m)
             o = 1.d0
             ellippi = cel((ome), 1.d0 - n, (o), (o))
-            ellippi_r = ellippi * q
+            ellippi_r = ellippi * qr
+            ellippi_b = ellippi * qb
                 
             eplusf = cel((ome), (o), alpha + beta, alpha * (1.d0 - m) + beta)
-            eplusf_r = cel((ome), (o), u + v, u * (1.d0 - m) + v)
+            eplusf_r = cel((ome), (o), ur + vr, ur * (1.d0 - m) + vr)
+            eplusf_b = cel((ome), (o), ub + vb, ub * (1.d0 - m) + vb)
             
             Fl = eplusf + gamma * ellippi + pisixth * (1.d0 - Sign(1.d0, bmr))
             Fl_r = eplusf_r + ellippi_r
+            Fl_b = eplusf_b + ellippi_b
             goto 3
         end if
     end if
@@ -771,7 +792,8 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     real*8 :: d_phi, d_r, d_b, eplusf_phi, eplusf_r, eplusf_b, lpm, lpmo
     real*8 :: ellippi, eplusf, ellipf, eplusf_m
     real*8 :: m_r, m_b, n_r, n_b, ellippim, ellippi_m, ellippi_n, ellippi_r
-    real*8 :: u, v, q, p
+    real*8 :: u, v, q, p, ur, vr, qr, pr, ub, vb, qb, pb, ellippi_b
+    real*8 :: alpha_b, beta_b, gamma_b
     
     r2 = r * r
     b2 = b * b
@@ -839,7 +861,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 goto 2
                 
             else
-                ! Still need to change this! 
                 alpha = 4 * (2 * r2 - 1.d0) * o9
                 alpha_r = 16 * r * o9
                 
@@ -906,28 +927,41 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             
             alpha = 2 * y * (7 * r2 + b2 - 4.d0) * o9
             alpha_r = b * (b2 + 35 * r2 - 4.d0) / (9 * y)
+            alpha_b = r * (5 * b2 + 7 * r2 - 4.d0) / (9 * y)
             
-            beta = 3.d0 + 2*r*(b2 * b + 5 * b2 * r + 3*r*(-2.d0 + r2) + b*(-4.d0 + 7*r2))
-            beta = -beta * o9 * 0.5 / y
+            beta = -(3.d0 + 2*r*(b2 * b + 5 * b2 * r + 3*r*(-2.d0 + r2) + b*(-4.d0 + 7*r2))) &
+                 / (18 * y)
             beta_r = (b * (3.d0 - 2 * r * (b2 * b + 15 * b2 * r + 3 * r * (-6.d0 + 7 * r2) &
-                + b * (-4.d0 + 35 * r2)))) / (36 * br**1.5)
+                   + b * (-4.d0 + 35 * r2)))) / (36 * br**1.5)
+            beta_b = (r * (3.d0 + 2 * r * (-5 * b2 * b - 15 * b2 * r + b * (4.d0 - 7 * r2) &
+                   + 3 * r * (-2 + r2)))) / (36 * br**1.5)
             
             gamma = bpr * o3 / (2 * bmr * y)
-            gamma_r = b * (4 * br + (r - b) * (r + b)) / (12 * bmr**2 * br**1.5)
+            gamma_r = b * (4 * br - bmr * bpr) / (12 * bmr**2.d0 * br**1.5d0)
+            gamma_b = -r * (4 * br + bmr * bpr) / (12 * bmr**2.d0 * br**1.5d0)
             
             m = (1.d0 - bmr) * (1.d0 + bmr) / (4 * br)
             m_r = ((b + 1.d0) * (b - 1.d0) - r2) / (4 * br * r)
+            m_b = ((r + 1.d0) * (r - 1.d0) - b2) / (4 * br * b)
             
             n = 1.d0 - 1.d0 / (bmr * bmr)
             n_r = -2.d0 / (bmr**3.d0)
+            n_b = -n_r
             
-            u = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
+            ur = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
                 + m * (m_r - m_r * n + (m - 1.d0) * n_r) * gamma) &
                 / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
-            v = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
+            vr = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
                 / (2 * m * (n - 1.d0) * n)
-            q = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
+            qr = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
                 + n * (m_r - m_r * n + n * n_r) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
+            ub = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_b * alpha + 2 * m * alpha_b) - m_b * beta) &
+                + m * (m_b - m_b * n + (m - 1.d0) * n_b) * gamma) &
+                / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
+            vb = (2 * beta_b * m * (n - 1.d0) * n - m_b * (n - 1.d0) * n * (alpha + beta) + m * n_b * gamma) &
+                / (2 * m * (n - 1.d0) * n)
+            qb = (2 * gamma_b * (m - n) * (n - 1.d0) * n - m * n_b * gamma &
+                + n * (m_b - m_b * n + n * n_b) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
                 
             ome = Sqrt(1.d0 - m)
             
@@ -936,16 +970,20 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 d = phi * o3 * 0.5 - Atan2(bpr * sinphi2, bmr * Cos(phi * 0.5)) * o3
                 d_phi = (r2 - br * cphi) / (3 * (b2 + r2 - 2 * br * cphi))
                 d_r = - b * sphi / (3 * (b2 + r2 - 2 * br * cphi))
+                d_b = r * sphi / (3 * (b2 + r2 - 2 * br * cphi))
                 
                 Fl_phi = 0.d0
-                p = 0.d0
+                pr = 0.d0
+                pb = 0.d0
                 
                 o = 1.d0
                 ellippi = cel((ome), 1.d0 - n, (o), (o))
-                ellippi_r = ellippi * q
+                ellippi_r = ellippi * qr
+                ellippi_b = ellippi * qb
                 
                 eplusf = cel((ome), (o), alpha + beta, alpha * (1.d0 - m) + beta)
-                eplusf_r = cel((ome), (o), u + v, u * (1.d0 - m) + v)
+                eplusf_r = cel((ome), (o), ur + vr, ur * (1.d0 - m) + vr)
+                eplusf_b = cel((ome), (o), ub + vb, ub * (1.d0 - m) + vb)
                 
             else                
                 y = Sqrt((1.d0 - b) * (1.d0 + b) - r2 + 2 * br * cphi)
@@ -953,34 +991,45 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                     - (2 * br * o9) * sphi * y
                 d_phi = o3 * o3 * r * (3 * (r - b * cphi) / (b2 + r2 - 2 * br * cphi) &
                     - 2 * b * cphi * y + 2 * b2 * r * sphi * sphi / y)
-                d_r = o3 * o3 * b * (-3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (r2 - br * cphi) / y - 2 * y) * sphi
+                d_r = o9 * b * (-3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (r2 - br * cphi) / y - 2 * y) * sphi
+                d_b = o9 * r * (3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (b2 - br * cphi) / y - 2 * y) * sphi
                 
                 Fl_phi = Cos(0.5 * phi) * (-(n * (alpha + 4 * beta)) &
                        + 4 * m * (alpha + 2*(beta + gamma)) &
                        + 4 * (m * alpha + n * beta) * cphi + n * alpha * Cos(2 * phi)) &
                        / (4 * Sqrt(m) * Sqrt(1.d0 + cphi) * Sqrt((-1.d0 + 2 * m + cphi) / m) * (2 * m - n + n * cphi))
                     
-                p = - Sqrt(m) * (4 * Sqrt(2.d0) * Cos(0.5 * phi) * (m_r * (-1.d0 + n) * (-2 * m + n) * (-m + n) &
+                pr = - Sqrt(m) * (4 * Sqrt(2.d0) * Cos(0.5 * phi) * (m_r * (-1.d0 + n) * (-2 * m + n) * (-m + n) &
                     * ((-1.d0 + m) * alpha - beta) + m * (-(m_r * (-1.d0 + n) * (-3 * n + 2 * m * (1.d0 + n))) &
                     + (-1.d0 + m) * (-1.d0 + 2 * m) * n * n_r) * gamma &
                     + n * (m_r * (m - n) * (-1.d0 + n) * ((-1.d0 + m)*alpha - beta) &
                     + m * (m_r - m_r * n + (-1.d0 + m) * n_r) * gamma) * cphi) * sinphi2) &
                     / (8 * (-1.d0 + m) * m**1.5 * (m - n) * (-1.d0 + n) &
                     * Sqrt((-1.d0 + 2 * m + cphi)) * (2 * m - n + n * cphi))
+                pb = - Sqrt(m) * (4 * Sqrt(2.d0) * Cos(0.5 * phi) * (m_b * (-1.d0 + n) * (-2 * m + n) * (-m + n) &
+                    * ((-1.d0 + m) * alpha - beta) + m * (-(m_b * (-1.d0 + n) * (-3 * n + 2 * m * (1.d0 + n))) &
+                    + (-1.d0 + m) * (-1.d0 + 2 * m) * n * n_b) * gamma &
+                    + n * (m_b * (m - n) * (-1.d0 + n) * ((-1.d0 + m)*alpha - beta) &
+                    + m * (m_b - m_b * n + (-1.d0 + m) * n_b) * gamma) * cphi) * sinphi2) &
+                    / (8 * (-1.d0 + m) * m**1.5 * (m - n) * (-1.d0 + n) &
+                    * Sqrt((-1.d0 + 2 * m + cphi)) * (2 * m - n + n * cphi))
                                         
                 tans = 1.d0 / Sqrt(m / (sinphi2 * sinphi2) - 1.d0)
                 
                 ellippi = el3((tans), (ome), 1.d0 - n)
-                ellippi_r = ellippi * q
+                ellippi_r = ellippi * qr
+                ellippi_b = ellippi * qb
                 
                 eplusf = el2((tans), (ome), alpha + beta, alpha * (1.d0 - m) + beta)
-                eplusf_r = el2((tans), (ome), u + v, u * (1.d0 - m) + v)
+                eplusf_r = el2((tans), (ome), ur + vr, ur * (1.d0 - m) + vr)
+                eplusf_b = el2((tans), (ome), ub + vb, ub * (1.d0 - m) + vb)
                 
             end if
             
             Fl = eplusf + gamma * ellippi + d
             Fl_phi = Fl_phi + d_phi  
-            Fl_r = eplusf_r + ellippi_r + p + d_r
+            Fl_r = eplusf_r + ellippi_r + pr + d_r
+            Fl_b = eplusf_b + ellippi_b + pb + d_b
             goto 2
             
         else
@@ -991,33 +1040,56 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             alpha = (7 * r2 + b2 - 4.d0) * x * o9
             alpha_r = (b * (b2 - 15 * br) + 3 * r * (6.d0 - 7 * r2) + b * (-4.d0 + 35 * r2)) &
                     / (9 * x)
+            alpha_b = (6 * b - 3 * b2 * b - 4 * r + 5 * b2 * r - 9 * b * r2 + 7 * r2 * r) / (9 * x)
             
             beta = (r2 * r2 + b2 * b2 + r2 - b2 * (5.d0 + 2 * r2) + 1.d0) / (9.d0 * x)
             beta_r = -o9 * (b2 * b2 * b - 5 * b2 * b2 * r + b2 * r * (11.d0 + 2 * r2) &
                    + b2 * b * (-5.d0 + 6 * r2) + b * (1.d0 - 3 * r2 - 7 * r2 * r2) + 3 * r * (-1.d0 - r2 + r2 * r2)) &
                    / ((1.d0 + b - r) * (1.d0 - b + r))**1.5
+            beta_b = -(3 * b2 * b2 * b + r - 7 * b2 * b2 * r &
+                   + r2 * r + r2 * r2 * r + b2 * b * (-9.d0 + 2 * r2) &
+                   + 3 * b2 * r * (5.d0 + 2 * r2) + b * (9.d0 - 7 * r2 - 5 * r2 * r2)) & 
+                    / (9 * x**3.d0)
                     
             gamma = bpr / (bmr * 3.d0 * x)
             gamma_r =  -o3 * (b * (3 * b2 - 5 * br) + r2 * r + b * (-2.d0 + r2)) &
                     / (bmr * bmr * x**3.d0)
+            gamma_b = -o3 * (2 * r - bmr * bmr * (b + 3 * r)) &
+                    / (bmr * bmr * ((1.d0 - bmr) * (1.d0 + bmr))**1.5)
             
             n = -4 * r * b / (bmr * bmr)
-            n_r = -4 * b * bpr / (bmr * bmr * bmr)
+            n_r = -4 * b * bpr  / (bmr * bmr * bmr)
+            n_b = 4 * r * bpr / (bmr * bmr * bmr)
             
             m = 4 * r * b / ((1.d0 - bmr) * (1.d0 + bmr))
             m_r = (4 * b * ((1.d0 + b) * (1.d0 - b) + r2)) / ((bmr - 1.d0) * (bmr + 1.d0))**2.d0
+            m_b = (4 * r * ((1.d0 + r) * (1.d0 - r) + b2)) / ((bmr - 1.d0) * (bmr + 1.d0))**2.d0
             
-            u = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
+            ur = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_r * alpha + 2 * m * alpha_r) - m_r * beta) &
                 + m * (m_r - m_r * n + (m - 1.d0) * n_r) * gamma) &
                 / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
-            v = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
+            vr = (2 * beta_r * m * (n - 1.d0) * n - m_r * (n - 1.d0) * n * (alpha + beta) + m * n_r * gamma) &
                 / (2 * m * (n - 1.d0) * n)
-            q = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
+            qr = (2 * gamma_r * (m - n) * (n - 1.d0) * n - m * n_r * gamma &
                 + n * (m_r - m_r * n + n * n_r) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
-            p = (-((m_r * (m - n) * (-2.d0 + n) * (-1.d0 + n) * beta + m * m_r * (-2.d0 + n) * (-1.d0 + n) * gamma &
+            pr = (-((m_r * (m - n) * (-2.d0 + n) * (-1.d0 + n) * beta + m * m_r * (-2.d0 + n) * (-1.d0 + n) * gamma &
                 - (-2.d0 + m) * (-1.d0 + m) * n * n_r * gamma &
                 + n * (-(m_r * (m - n) * (-1.d0 + n) * beta) &
                 + m * (m_r - m_r * n + (-1.d0 + m) * n_r) * gamma) * cphi) * sphi)) &
+                / (2 * (-1.d0 + m) * (m - n) * (-1.d0 + n) &
+                * Sqrt(4.d0 - 2 * m + 2 * m * cphi) * (2.d0 - n + n * cphi))
+                
+            ub = ((m - n) * (n - 1.d0) * ((m - 1.d0) * (m_b * alpha + 2 * m * alpha_b) - m_b * beta) &
+                + m * (m_b - m_b * n + (m - 1.d0) * n_b) * gamma) &
+                / (2 * (m - 1.d0) * m * (m - n) * (n - 1.d0))
+            vb = (2 * beta_b * m * (n - 1.d0) * n - m_b * (n - 1.d0) * n * (alpha + beta) + m * n_b * gamma) &
+                / (2 * m * (n - 1.d0) * n)
+            qb = (2 * gamma_b * (m - n) * (n - 1.d0) * n - m * n_b * gamma &
+                + n * (m_b - m_b * n + n * n_b) * gamma) / (2 * (m - n) * (n - 1.d0) * n)
+            pb = (-((m_b * (m - n) * (-2.d0 + n) * (-1.d0 + n) * beta + m * m_b * (-2.d0 + n) * (-1.d0 + n) * gamma &
+                - (-2.d0 + m) * (-1.d0 + m) * n * n_b * gamma &
+                + n * (-(m_b * (m - n) * (-1.d0 + n) * beta) &
+                + m * (m_b - m_b * n + (-1.d0 + m) * n_b) * gamma) * cphi) * sphi)) &
                 / (2 * (-1.d0 + m) * (m - n) * (-1.d0 + n) &
                 * Sqrt(4.d0 - 2 * m + 2 * m * cphi) * (2.d0 - n + n * cphi))
             
@@ -1027,14 +1099,17 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             d = o3 * (phi * 0.5 - Atan((bpr / bmr) * tanphi2)) &
                 - 2 * br * o9 * sphi * y
             d_r = o9 * b * sphi * (-3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (r2 - br * cphi) / y - 2 * y)
+            d_b = o9 * r * (3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (b2 - br * cphi) / y - 2 * y) * sphi
             d_phi = o9 * r * (3 * (r - b * cphi) / (b2 + r2 - 2 * br * cphi) &
                 - 2 * b * cphi * y + 2 * b2 * r * sphi * sphi / y)
                 
             ellippi = el3((tans), (ome), 1.d0 - n)
-            ellippi_r = ellippi * q
+            ellippi_r = ellippi * qr
+            ellippi_b = ellippi * qb
                 
             eplusf = el2((tans), (ome), alpha + beta, alpha * (1.d0 - m) + beta)
-            eplusf_r = el2((tans), (ome), u + v, u * (1.d0 - m) + v)
+            eplusf_r = el2((tans), (ome), ur + vr, ur * (1.d0 - m) + vr)
+            eplusf_b = el2((tans), (ome), ub + vb, ub * (1.d0 - m) + vb)
 
             Fl_phi = (2 * alpha - m * alpha - n * alpha + 2 * beta - n * beta + 2 * gamma + m * alpha * cphi &
                     + n* alpha * cphi + n * beta * cphi + 2 * m * n * alpha * sinphi2**4) &
@@ -1042,7 +1117,8 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             
             Fl = eplusf + gamma * ellippi + d
             Fl_phi = Fl_phi + d_phi
-            Fl_r = eplusf_r + ellippi_r + p + d_r
+            Fl_r = eplusf_r + ellippi_r + pr + d_r
+            Fl_b = eplusf_b + ellippi_b + pb + d_b
             goto 2
             
         end if
