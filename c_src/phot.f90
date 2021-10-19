@@ -927,7 +927,8 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 eplusf_r = cel((ome), (o), u + v, u * (1.d0 - m) + v)
                 
             else
-            
+                ! Got work to do on this one because of the reciprocol modulus nonsense 
+                
                 y = Sqrt((1.d0 - b) * (1.d0 + b) - r2 + 2 * br * cphi)
                 d = o3 * (phi * 0.5 - Atan2(bpr * sinphi2, bmr * Cos(phi * 0.5))) &
                     - (2 * br * o9) * sphi * y
@@ -935,19 +936,20 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                     - 2 * b * cphi * y + 2 * b2 * r * sphi * sphi / y)
                 d_r = o3 * o3 * b * (-3.d0 / (b2 + r2 - 2 * br * cphi) + 2 * (r2 - br * cphi) / y - 2 * y) * sphi
                 
-                Fl_phi = (-alpha - beta - gamma + (m * alpha + n * (alpha + beta)) * sphi * sphi &
-                    - m * n * alpha * sphi**4.d0) / (Sqrt(1.d0 - m * sphi * sphi) * (n * sphi * sphi - 1.d0))
+                Fl_phi = Cos(0.5 * phi) * (-(n * (alpha + 4 * beta)) &
+                       + 4 * m * (alpha + 2*(beta + gamma)) &
+                       + 4 * (m * alpha + n * beta) * cphi + n * alpha * Cos(2 * phi)) &
+                       / (4 * Sqrt(m) * Sqrt(1.d0 + cphi) * Sqrt((-1.d0 + 2 * m + cphi) / m) * (2 * m - n + n * cphi))
                     
-                p = ((m_r * (n - 1.d0)* n * beta - n * n_r * gamma + m * n * n_r * gamma &
-                    - m * m_r * (n - 1.d0) * (beta + gamma) + n * (m_r * (m - n) * (n - 1.d0) * beta &
-                    + m * (m_r * (n - 1.d0) + n_r - m * n_r) * gamma) * sphi * sphi) * Sin(2 * phi)) &
-                    / (4 * (m - 1.d0) * (m - n) * (n - 1.d0) * Sqrt(1.d0 - m * sphi * sphi) * (n * sphi * sphi - 1.d0))
+                p = - (4 * Sqrt(2.d0) * Cos(0.5 * phi)**2.d0 * (m_r * (-1.d0 + n) * (-2 * m + n) * (-m + n) &
+                    * ((-1.d0 + m) * alpha - beta) + m * (-(m_r * (-1.d0 + n) * (-3 * n + 2 * m * (1.d0 + n))) &
+                    + (-1.d0 + m) * (-1.d0 + 2 * m) * n * n_r) * gamma &
+                    + n * (m_r * (m - n) * (-1.d0 + n) * ((-1.d0 + m)*alpha - beta) &
+                    + m * (m_r - m_r * n + (-1.d0 + m) * n_r) * gamma) * cphi) * sinphi2) &
+                    / (8 * (-1.d0 + m) * m**1.5 * (m - n) * (-1.d0 + n) * Sqrt(Cos(0.5 * phi)**2.d0) &
+                    * Sqrt((-1.d0 + 2 * m + cphi) / m) * (2 * m - n + n * cphi))
                                         
                 tans = 1.d0 / Sqrt(m / (sinphi2 * sinphi2) - 1.d0)
-                
-                ! check this later too! The modified d_phi needs to be redifferentiated post-transform 
-                d_phi = (b2 - r2 - 1.d0) / (4 * b * r2) * Sqrt(b * r * sinphi2 / ((1.d0 - bmr) * (1.d0 + bmr))) &
-                      + 0.125 * Sqrt((1.d0 - bmr) * (1.d0 + bmr) / (br * sinphi2)) * Cos(phi * 0.5) * d_phi
                 
                 ellippi = el3((tans), (ome), 1.d0 - n)
                 ellippi_r = ellippi * q
