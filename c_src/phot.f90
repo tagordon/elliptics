@@ -165,8 +165,6 @@ end
 
 subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
 
-    ! incorporate the new derivatives with respect to bp and bm
-
     integer (c_int), bind(C) :: j
     integer :: i
     real (c_double), bind(C) :: rp, rm
@@ -194,7 +192,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     rm2 = rm * rm
     
     f0(1) = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * twopithree + c2 * pihalf
-    !f0(1) = (1.d0 - c1 - 1.5 * c2) * pi + (c1 + 2 * c2) * twopithree - c2 * 3 * pihalf
     f0(2) = 0.d0
     f0(3) = 0.d0
     f0(4) = 0.d0
@@ -202,7 +199,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     f0(6) = 0.d0
     f0(7) = -pi + twopithree 
     f0(8) = -2 * pi + 2 * twopithree + pihalf
-    !f0(8) = -1.5 * pi + 2 * twopithree - 3 * pihalf
     
     of0 = 1.d0 / f0(1)
     lc = 0.d0
@@ -270,12 +266,9 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                             call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                             phi = phip + phim
-                            !phi_bp = phip_bp + phim_bp
-                            !phi_rp = phip_rp + phim_rp
                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
                                   - F(c1, c2, thetap, rp, bpi, thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
                                   - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_bm, thetam_rm, 0.d0, .FALSE.)) * of0
-                            !lc(:, i) = 1.1d0
                             goto 1
                         end if
                     end if
@@ -488,7 +481,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                   -phim1_bp, -phim1_rp, -phim1_bm, -phim1_rm, -phim1_bpm, .FALSE.) & 
                                             - Arc(c1, c2, -phim2, thetam, rm, bmi, &
                                                   -phim2_bp, -phim2_rp, -phim2_bm, -phim2_rm, -phim2_bpm, &
-                                                  0.d0, 0.d0, -theta_bm, -theta_rm, 0.d0, .FALSE.) &
+                                                  0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) &
                                             - Arc(c1, c2, phip1, thetap, rp, bpi, &
                                                   phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
                                                   thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) &
@@ -497,7 +490,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
                                         goto 1
                                     else
-                                        ! this is a place to check when things are broken later
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -610,14 +602,6 @@ function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
     Fq_rm = Fq_phi * phi_rm
     Fq_bpm = Fq_phi * phi_bpm
     
-    !Fq = phi - 0.5 * o3 * Sin(2 * phi)
-    !Fq_phi = 1.d0 - o3 * Cos(2 * phi)
-    !Fq_bp = Fq_phi * phi_bp
-    !Fq_rp = Fq_phi * phi_rp
-    !Fq_bm = Fq_phi * phi_bm
-    !Fq_rm = Fq_phi * phi_rm
-    !Fq_bpm = Fq_phi * phi_bpm
-    
     Fl = phi * o3
     Fl_phi = o3
     Fl_bp = Fl_phi * phi_bp
@@ -627,7 +611,6 @@ function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
     Fl_bpm = Fl_phi * phi_bpm
     
     cc = 1.d0 - c1 - 2 * c2
-    !cc = 1.d0 - c1 - 2 * c2
     cl = c1 + 2 * c2
     cq = c2
     
@@ -869,16 +852,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
 
     Fq_b = b * (r2 * phi - br * sphi * 0.5) &
         + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
-        
-    !Fq = o3 * 0.5 * r * (-2 * b * (2 * b2 + 3 * r2) * sphi &
-    !   + r * (6 * phi + (-3.d0 + 6 * b2 + 2 * r2) * Sin(2 * phi) - 2 * br * Sin(3 * phi)))
-        
-    !Fq_phi = 0.d0
-           
-    !Fq_r = 2 * r * phi - 2 * o3 * (b2 * b + 6 * b * r2 + r * (3.d0 - 6 * b2 - 4 * r2) * cphi &
-    !     + 3 * b * r2 * Cos(2 * phi)) * sphi
-         
-    !Fq_b = -2 * o3 * r * (3 * b2 + 2 * r2 - 6 * br * cphi + r2 * Cos(2 * phi)) * sphi
                 
     Fq_bp = Fq_phi * phi_bp
     Fq_rp = Fq_phi * phi_rp
@@ -945,7 +918,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 
             end if
         else if (bpr == 1.d0) then
-            ! also double check this at some point 
             y = Sqrt(br)
             Fl = phi * o3 * 0.5 + Atan((2 * r - 1.d0) * tphihalf) * o3 &
                 + Atan(2 * y * sphihalf / (1.d0 - 2 * r)) * o3 &
@@ -980,7 +952,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             gamma = bpr * o3 / (2 * bmr * y)
             
             m = (1.d0 - bmr) * (1.d0 + bmr) / (4 * br)
-            n = 1.d0 - 1.d0 / (bmr * bmr)
+            n = ((bmr + 1.d0) * (bmr - 1.d0)) / bmr**2.d0
             sqomm = Sqrt(1.d0 - m)
 
             ur = 4 * r * y
@@ -988,7 +960,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             ub = 2 * r * (b2 + r2 - 1.d0) / (3 * y)
             vb = vr * o3
             
-            if (abs(sphihalf / Sqrt(m) - 1.d0) .lt. 1.d-12) then
+            if (phi_bpm .eq. 0.d0) then
             
                 d = phi * o3 * 0.5 - Atan(bpr * tphihalf / bmr) * o3
                 d_phi = (r2 - br * cphi) / (3 * (b2 + r2 - 2 * br * cphi))
@@ -1045,7 +1017,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 !eplusf_b = el2((tans), (sqomm), ub + vb, ub * (1.d0 - m) + vb)
                 
             end if
-            
+
             Fl = eplusf + gamma * ellippi + d
             Fl_phi = Fl_phi + d_phi  
             Fl_r = eplusf_r + pr + d_r
