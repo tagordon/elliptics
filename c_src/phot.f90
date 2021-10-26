@@ -23,7 +23,7 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     real*8 :: a, b, c, thetam, thetap, tmp, area, phip, phim
     real*8 :: thetam_bpm, thetap_bpm, thetam_rm, thetap_rm, thetam_rp, thetap_rp
     real*8 :: phim_bpm, phip_bpm, x, y, phim_bp, phim_bm, phip_bp, phip_bm
-    
+
     bpm2 = bpm * bpm
     rp2 = rp * rp
     rm2 = rm * rm
@@ -58,34 +58,61 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     thetap_rp = ((bpm - rp) * (bpm + rp) - rm2) / (rp * area)
     thetap_rm = 2 * rm / area
     
-    a = bm
-    b = bp
-    c = bpm
-    if (b .gt. a) then
-        tmp = b
-        b = a
-        a = tmp
-    end if
-    if (c .gt. b) then
-        tmp = c
-        c = b
-        b = tmp
-    end if
-    if (b .gt. a) then
-        tmp = b
-        b = a
-        a = tmp
-    end if
-    area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
-    phim = Atan2(area, (bm - bp) * (bm + bp) + bpm2)
-    phim_bpm = ((bm - bp) * (bm + bp) - bpm2) / (bpm * area)
-    phim_bm = ((bpm - bm) * (bpm + bm) - bp * bp) / (bm * area)
-    phim_bp = 2 * bp / area
+    ! need a fix for when planet/moon are perfectly aligned. 
+    ! The angles are right but the derivatives aren't. Seems like 
+    ! they go to infinity (since the area of the trangle in the denominator
+    ! is zero), but I don't know what to do with that. 
+    if (bpm .eq. bm - bp) then
+        phim = 0.d0
+        phim_bpm = 0.d0
+        phim_bm = 0.d0
+        phim_bp = 0.d0
+        
+        phip = pi
+        phip_bpm = 0.d0
+        phip_bm = 0.d0
+        phim_bp = 0.d0
+    else if (bpm .eq. bp - bm) then
+        phim = pi
+        phim_bpm = 0.d0
+        phim_bm = 0.d0
+        phim_bp = 0.d0
+        
+        phip = 0.d0
+        phip_bpm = 0.d0
+        phip_bm = 0.d0
+        phim_bp = 0.d0
+    else
     
-    phip = Atan2(area, (bp - bm) * (bp + bm) + bpm2)
-    phip_bpm = ((bp - bm) * (bp + bm) - bpm2) / (bpm * area)
-    phip_bm = 2 * bm / area
-    phip_bp = ((bpm + bp) * (bpm - bp) - bm * bm) / (bp * area)
+        a = bm
+        b = bp
+        c = bpm
+        if (b .gt. a) then
+            tmp = b
+            b = a
+            a = tmp
+        end if
+        if (c .gt. b) then
+            tmp = c
+            c = b
+            b = tmp
+        end if
+        if (b .gt. a) then
+            tmp = b
+            b = a
+            a = tmp
+        end if
+        area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+        phim = Atan2(area, (bm - bp) * (bm + bp) + bpm2)
+        phim_bpm = ((bm - bp) * (bm + bp) - bpm2) / (bpm * area)
+        phim_bm = ((bpm - bm) * (bpm + bm) - bp * bp) / (bm * area)
+        phim_bp = 2 * bp / area
+    
+        phip = Atan2(area, (bp - bm) * (bp + bm) + bpm2)
+        phip_bpm = ((bp - bm) * (bp + bm) - bpm2) / (bpm * area)
+        phip_bm = 2 * bm / area
+        phip_bp = ((bpm + bp) * (bpm - bp) - bm * bm) / (bp * area)
+    end if
 
     phim1 = phim + thetam
     phim1_bpm = phim_bpm + thetam_bpm
@@ -213,63 +240,63 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
         bpmi = bpm(i)
         
         if ((bpi .gt. rp + 1.d0) .AND. (bmi .gt. rm + 1.d0)) then
+            ! neither planet nor moon overlap star
             lc(:, i) = f0 * of0
-            goto 1
         else if (bpmi .gt. rp + rm) then
             if (bpi .gt. rp + 1.d0) then
                 if (bmi .gt. rm + 1.d0) then
+                    ! neither planet nor moon overlap star 
                     lc(:, i) = f0 * of0
-                    goto 1
                 else
                     if (bmi + rm .lt. 1.d0) then
+                        ! moon completely overlaps star, planet is outside of star
                         lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rm, bmi, .FALSE.)) * of0
-                        goto 1
                     else
+                        ! moon partially overlaps star, planet is outside of star
                         call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
                                 - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
-                        goto 1
                     end if
                 end if
             else
                 if (bmi .gt. rm + 1.d0) then
                     if (bpi + rp .lt. 1.d0) then
+                        ! planet completely overlaps star, moon is outside of star
                         lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
-                        goto 1
                     else
+                        ! planet partially overlaps star, moon is outside of star
                         call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                               - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
-                        goto 1
                     end if
                 else
                     if (bpi + rp .lt. 1.d0) then
                         if (bmi + rm .lt. 1.d0) then
+                            ! moon and planet both completely overlap star, they do not overlap each othe
                             lc(:, i) = (f0 - 2 * (Fcomplete(c1, c2, rm, bmi, .FALSE.) &
                                   + Fcomplete(c1, c2, rp, bpi, .TRUE.))) * of0
-                            goto 1
                         else
+                            ! planet completely overlaps star, moon partially overlaps star, they do not overlap each other
                             call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
                                   - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) &
                                   - Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
-                            goto 1
                         end if
                     else
                         if (bmi + rm .lt. 1.d0) then
+                            ! planet partially overlaps star, moon fully overlaps star, they do not overlap each other
                             call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                   - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
                                   - Fcomplete(c1, c2, rm, bmi, .FALSE.)) * of0
-                            goto 1
                         else
+                            ! moon and planet both partially overlap star, but not each other
                             call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                             call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                             phi = phip + phim
                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
                                   - F(c1, c2, thetap, rp, bpi, thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
                                   - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_bm, thetam_rm, 0.d0, .FALSE.)) * of0
-                            goto 1
                         end if
                     end if
                 end if
@@ -277,32 +304,33 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
         else
             if (bpi .gt. rp + 1.d0) then
                 if (bmi .gt. rm + 1.d0) then
+                    ! neither moon nor planet overlap star
                     lc(:, i) = f0
-                    goto 1
                 else
+                    ! moon partially overlaps star, planet does not overlap star
                     call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
                     lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
                             - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
-                    goto 1
                 end if
             else
                 if (bmi .gt. rm + 1.d0) then
                     if (bpi + rp .lt. 1.d0) then
+                        ! planet fully overlaps star, moon does not overlap star
                         lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
-                        goto 1
                     else
+                        ! planet partially overlaps star, moon does not overlap star
                         call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                               - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
-                        goto 1
                     end if
                 else
                     if (bpi + rp .lt. 1.d0) then
                         if (bmi + rm .lt. 1.d0) then
                             if (bpmi + rm .lt. rp) then
+                                ! moon and planet both overlap star, moon fully overlapped by planet
                                 lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
-                                goto 1
                             else
+                                ! moon and planet both overlap star, moon and planet partially overlap each other 
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                     phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -314,12 +342,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                 + Arc(c1, c2, phim1, phim2, rm, bmi, &
                                                       phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
                                                       phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .False.))) * of0
-                                goto 1
                             end if
                         else 
                             if (bpmi + rm .lt. rp) then
-                                goto 1
+                                ! not physical (planet fully overlaps star, moon partially overlaps star while fully overlapped by planet.)
                             else
+                                ! planet fully overlaps star, moon partially overlaps star and partially overlaps planet. 
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                     phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -336,17 +364,17 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                   - Arc(c1, c2, phip1, phip2, rp, bpi, &
                                         phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
                                         phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
-                                goto 1
                             end if
                         end if
                     else
                         if (bmi + rm .lt. 1.d0) then 
                             if (bpmi + rm .lt. rp) then
+                                ! planet partially overlaps star, moon fully overlaps star but is completely overlapped by planet 
                                 call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                                 lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                     - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
-                                goto 1
                             else
+                                ! planet partially overlaps star, moon fully overlaps star and only partially overlaps planet
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                     phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                     phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -363,16 +391,15 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                   - Arc(c1, c2, phim1, phim2, rm, bmi, & 
                                         phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
                                         phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.)) * of0
-                                goto 1
                             end if
                         else
                             obpi = 1.d0 / bpi
                             obmi = 1.d0 / bmi
                             if (bpmi + rm .lt. rp) then
+                                ! planet and moon both partially overlap star but moon is fully overlapped by the planet
                                 call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                                 lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                     - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
-                                goto 1
                             else
                                 call compute_theta(rp,  bpi, theta, phip, theta_bp, theta_rp, phip_bp, phip_rp)
                                 call compute_theta(rm,  bmi, theta, phim, theta_bm, theta_rm, phim_bm, phim_rm)
@@ -410,10 +437,11 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                 phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
                                         call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                                         if (phip2 .gt. theta) then
+                                            ! planet and moon both partially overlap the star and each other but the moon-star overlap is contained within the planet-star overlap
                                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                                 - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
-                                            goto 1
                                         else
+                                            ! planet and moon both partially overlap star and each other but the planet-star intersections are overlapped by the planet
                                             lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                               - Arc(c1, c2, -theta, phip2, rp, bpi, &
                                                     -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
@@ -424,10 +452,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                               - Arc(c1, c2, phim1, phim2, rm, bmi, &
                                                     phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
                                                     phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.)) * of0
-                                             goto 1
                                         end if
                                 else if (thetapm + phip .lt. phim) then
                                     if ((bpi - rp) .lt. (bmi - rm)) then
+                                        ! planet and moon both partially overlap the star and each other but the planet-star intersections are overlapped by the moon
+                                        ! I'm not sure this is physical either -- can you draw a diagram where the moon overlaps both of the planet-star 
+                                        ! intersections without the planet-star overlap being entirely within the moon-star region of overlap?
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -444,12 +474,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                             - Arc(c1, c2, phip1, phip2, rp, bpi, &
                                                   phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
-                                        goto 1
                                     else
+                                        ! planet and moon both partially overlap the star and each other but the planet-star overlap is 
+                                        ! entirely within the moon-star overlap
                                         call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
                                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
                                           - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
-                                        goto 1
                                     end if
                                 else
                                     costheta = (bpm2i + bm2i - bp2i) / (2 * bpmi * bmi)
@@ -459,14 +489,15 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                     d1 = rm2 + bm2i - 2 * rm * bmi * cosphi1
                                     d2 = rm2 + bm2i - 2 * rm * bmi * cosphi2
                                     if (d1 .gt. 1.d0) then
+                                        ! planet and moon both partially overlap star and each other, but the planet/moon overlap does not overlap the star
                                         call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                                         call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                                         phi = phip + phim
                                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
                                           - F(c1, c2, thetap, rp, bpi, theta_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
                                           - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_rm, thetam_rp, 0.d0, .FALSE.)) * of0
-                                        goto 1
                                     else if (d2 .lt. 1.d0) then
+                                        ! planet and moon both partially overlap star and each other, with the planet/moon overlap fully overlapping the star
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -488,8 +519,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                             - Arc(c1, c2, -thetap, phip2, rp, bpi, &
                                                   -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
-                                        goto 1
                                     else
+                                        ! planet and moon both partially overlap star and each other, with the planet/moon overlap partially overlapping the star
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -507,7 +538,6 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                             - Arc(c1, c2, -thetap, phip2, rp, bpi, &
                                                   -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
-                                        goto 1
                                     end if
                                 end if
                             end if
@@ -515,7 +545,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                     end if
                 end if
             end if  
-1        end if
+        end if
         lc(:, i) = lc(:, i) - f0 * of0
     end do
     return
@@ -622,7 +652,6 @@ function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
     Fstar(6) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
     Fstar(7) = - Fc + Fl 
     Fstar(8) = -2 * Fc + 2 * Fl + Fq
-    !Fstar(8) = -1.5 * Fc + 2 * Fl - 0.25 * Fq
     return
     
 end function
@@ -659,25 +688,17 @@ function Fcomplete(c1, c2, r, b, pflag)
     Fq_r = pi * r * (b2 + r2)
     Fq_b = pi * r2 * b
     
-    !Fq = pi * r2
-    !Fq_r = 2 * pi * r
-    !Fq_b = 0.d0
-    
     if (-c1 .eq. 2 * c2) then
         Fl = 0.d0
         Fl_r = 0.d0
-        Fl_b = 0.d0
-        goto 3
-        
+        Fl_b = 0.d0        
     else
         if (b == r) then
             if (r == 0.5) then
             
                 Fl = pisixth + 2.d0 * o9
                 Fl_r = 0.d0
-                Fl_b = 0.d0
-                goto 3
-                
+                Fl_b = 0.d0                
             else
             
                 ! much to fix here! shouldn't be any n's!!! 
@@ -701,9 +722,7 @@ function Fcomplete(c1, c2, r, b, pflag)
                 eplusf_r = cel((sqomm), (o), ur + vr, ur * (1.d0 - m) + vr)
                 
                 Fl = eplusf + pisixth
-                Fl_r = eplusf_r 
-                goto 3
-                
+                Fl_r = eplusf_r                 
             end if
         else if (bpr == 1.d0) then
         
@@ -722,8 +741,6 @@ function Fcomplete(c1, c2, r, b, pflag)
             Fl_b = 0.5 * o9 * r * (8 * y + 6 * pi / ((1.d0 - 2 * r) * Sqrt(1.d0 - 4 * r)) &
                 + (pi - 2 * pi * r) / (y * (1.d0 + 4 * r * (b + r - 1))) &
                 + (4 * r * (5 * r + b - 2.d0) - 6.d0) / y)
-                
-            goto 3
         else
         
             x = 1.d0 /  Sqrt((1.d0 - bmr) * (1.d0 + bmr))
@@ -755,7 +772,6 @@ function Fcomplete(c1, c2, r, b, pflag)
             Fl = eplusf + gamma * ellippi + pisixth * (1.d0 - Sign(1.d0, bmr))
             Fl_r = eplusf_r
             Fl_b = eplusf_b
-            goto 3
         end if
     end if
     
@@ -763,11 +779,9 @@ function Fcomplete(c1, c2, r, b, pflag)
         Fl = pithird * (1.d0 - (1.d0 - r2) ** (1.5))
         Fl_r = -pi * r * Sqrt(1.d0 - r2)
         Fl_b = 0.d0
-        goto 3
     end if
 
-3   cc = 1.d0 - c1 - 2 * c2
-!3   cc = 1.d0 - c1 - 1.5 * c2
+    cc = 1.d0 - c1 - 2 * c2
     cl = c1 + 2 * c2
     cq = c2
     Fcomplete = 0.d0
@@ -778,14 +792,12 @@ function Fcomplete(c1, c2, r, b, pflag)
         Fcomplete(3) = cc * Fc_r + cl * Fl_r + cq * Fq_r
         Fcomplete(7) = - Fc + Fl 
         Fcomplete(8) = -2 * Fc + 2 * Fl + Fq
-        !Fcomplete(8) = -2 * Fc + 2 * Fl + 0.25 * Fq
     else
         Fcomplete(1) = cc * Fc + cl * Fl + c2 * Fq
         Fcomplete(4) = cc * Fc_b + cl * Fl_b + c2 * Fq_b
         Fcomplete(5) = cc * Fc_r + cl * Fl_r + c2 * Fq_r
         Fcomplete(7) = - Fc + Fl 
         Fcomplete(8) = -2 * Fc + 2 * Fl + Fq
-        !Fcomplete(8) = -1.5 * Fc + 2 * Fl - 0.25 * Fq
     end if
     return
 
@@ -839,16 +851,16 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     Fc_rm = Fc_phi * phi_rm
     Fc_bpm = Fc_phi * phi_bpm 
     
-    Fq = r2 * r2 * 0.25 * (phi - sphi * cphi * (4 * o3 * cphi * cphi - 1.d0)) &
-        + b * (br * 0.5 * (phi * r - b * sphi * o3) &
-        + r2 * r * sphi * 0.25 * ((2 * cphi + 1.d0) * (2 * cphi - 1.d0) * o3 - 3.d0))
+    Fq = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi &
+       - 4 * r * (3 * (2 * b2 + r2) * phi &
+       + br * Sin(3 * phi)) + r2 * r * Sin(4 * phi)))
 
     Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi &
         - 3 * r * (2 * b2 + r2 + br * Cos(3 * phi)) + r2 * r * Cos(4 * phi)))
 
-    Fq_r = b * (b * (r * phi - (b * sphi) * o3 * 0.5) &
-        + 0.25 * r2 * (Sin(3 * phi) - 9 * sphi)) &
-        + r2 * r * (phi - Sin(4*phi) * o3 * 0.25)
+    Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi) &
+         + r * (12 * (b2 + r2) * phi + 3 * br * Sin(3 * phi) &
+         - r2 * Sin(4 * phi))) * 0.25 * o3
 
     Fq_b = b * (r2 * phi - br * sphi * 0.5) &
         + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
@@ -863,9 +875,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
         Fl = 0.d0
         Fl_phi = 0.d0
         Fl_r = 0.d0
-        Fl_b = 0.d0
-        goto 2
-        
+        Fl_b = 0.d0        
     else
         if (b == r) then
             if (r == 0.5) then
@@ -874,9 +884,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                     * (1.d0 - sphihalf * sphihalf * o3)
                 Fl_phi = 0.5 * o3 * (1.d0 + 0.75 * cphihalf + 0.25 * Cos(3 * phi * 0.5))
                 Fl_r = 0.d0
-                Fl_b = 0.d0
-                goto 2
-                
+                Fl_b = 0.d0                
             else
                 alpha = 4 * (2 * r2 - 1.d0) * o9
                 alpha_r = 16 * r * o9
@@ -913,9 +921,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 
                 Fl = eplusf + d
                 Fl_phi = Fl_phi + d_phi
-                Fl_r = eplusf_r + d_r
-                goto 2
-                
+                Fl_r = eplusf_r + d_r                
             end if
         else if (bpr == 1.d0) then
             y = Sqrt(br)
@@ -939,9 +945,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 - 8 * y * cphi * (3.d0 + 2 * (2.d0 - 5*r) * r + 2 * br * cphi) &
                 + (12 * y *(2*r - 1.d0)*cphihalf) / (-2 * r * (-2 + b + 2 * r - 2.d0) + 2 * br * cphi - 1.d0) &
                 + (phi - 2 * phi * r) / (1.d0 + 2 * (r - 1.d0) * r &
-                + 2 * (r - 1.d0) * r * cphi) + 16 * br**1.5 * sphi**2) * 0.25 * o9
-            goto 2
-            
+                + 2 * (r - 1.d0) * r * cphi) + 16 * br**1.5 * sphi**2) * 0.25 * o9            
         else if (bpr .gt. 1.d0) then
         
             y = Sqrt(br)
@@ -982,7 +986,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 !eplusf = cel((sqomm), (o), alpha + beta, alpha * (1.d0 - m) + beta)
                 !eplusf_r = cel((sqomm), (o), ur + vr, ur * (1.d0 - m) + vr)
                 !eplusf_b = cel((sqomm), (o), ub + vb, ub * (1.d0 - m) + vb)
-                
             else                
                 y = Sqrt((1.d0 - b) * (1.d0 + b) - r2 + 2 * br * cphi)
                 d = o3 * (phi * 0.5 - Atan(bpr * tphihalf / bmr)) &
@@ -1015,14 +1018,11 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
                 !eplusf = el2((tans), (sqomm), alpha + beta, alpha * (1.d0 - m) + beta)
                 !eplusf_r = el2((tans), (sqomm), ur + vr, ur * (1.d0 - m) + vr)
                 !eplusf_b = el2((tans), (sqomm), ub + vb, ub * (1.d0 - m) + vb)
-                
             end if
-
             Fl = eplusf + gamma * ellippi + d
             Fl_phi = Fl_phi + d_phi  
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
-            goto 2
             
         else
         
@@ -1073,7 +1073,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             Fl_phi = Fl_phi + d_phi
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
-            goto 2
             
         end if
         
@@ -1081,13 +1080,11 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             Fl = phi * (1.d0 - (1.d0 - r2) ** (1.5)) * o3
             Fl_phi = (1.d0 - (1.d0 - r2) ** (1.5)) * o3
             Fl_r = -pi * r * Sqrt(1.d0 - r2)
-            goto 2
         end if
         
     end if
     
 2   cc = 1.d0 - c1 - 2 * c2
-!2   cc = 1.d0 - c1 - 1.5 * c2
     cl = c1 + 2 * c2
     cq = c2
         
@@ -1121,7 +1118,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     F(6) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
     F(7) = - Fc + Fl 
     F(8) = -2 * Fc + 2 * Fl + Fq
-    !F(8) = -1.5 * Fc + 2 * Fl - 0.25 * Fq
 
     return
 end function
