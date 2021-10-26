@@ -10,6 +10,8 @@ real*8, parameter :: pithird = 1.0471975511965976, pisixth = 0.5235987755982988
 
 contains
 
+! computes the angular location of the intersections between moon and planet from 
+! from the perspective of each body 
 subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, phim2_bpm, phim2_bp, &
     phim2_bm, phim2_rp, phim2_rm, phip1_bpm, phip1_bp, phip1_bm, &
@@ -28,6 +30,7 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     rp2 = rp * rp
     rm2 = rm * rm
     
+    ! first compute the angle from the planet center - moon center line 
     a = rm
     b = bpm
     c = rp
@@ -57,6 +60,9 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     thetap_bpm = ((rp - rm) * (rp + rm) - bpm2) / (bpm * area)
     thetap_rp = ((bpm - rp) * (bpm + rp) - rm2) / (rp * area)
     thetap_rm = 2 * rm / area
+    
+    ! then compute the angle to the planet or moon from the x-axis 
+    ! in order to transform into the correct coordinates 
     
     ! need a fix for when planet/moon are perfectly aligned. 
     ! The angles are right but the derivatives aren't. Seems like 
@@ -156,6 +162,8 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     end if
 end
 
+! computes the angle to the moon-star or planet-star intersections from the 
+! perspective of the moon/planet and the star
 subroutine compute_theta(rp, bp, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
 
     real*8 :: a, b, c, rp, bp, theta, phi
@@ -190,6 +198,8 @@ subroutine compute_theta(rp, bp, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
     phi_rp = 2 * rp / area
 end
 
+! main loop to compute the flux at each timestep by finding the correct geometry and
+! calling the integration routines 
 subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
 
     integer (c_int), bind(C) :: j
@@ -218,6 +228,7 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     rp2 = rp * rp
     rm2 = rm * rm
     
+    ! normalization factors 
     f0(1) = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * twopithree + c2 * pihalf
     f0(2) = 0.d0
     f0(3) = 0.d0
@@ -345,7 +356,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                             end if
                         else 
                             if (bpmi + rm .lt. rp) then
-                                ! not physical (planet fully overlaps star, moon partially overlaps star while fully overlapped by planet.)
+                                ! not physical (planet fully overlaps star, moon partially 
+                                ! overlaps star while fully overlapped by planet.)
                             else
                                 ! planet fully overlaps star, moon partially overlaps star and partially overlaps planet. 
                                 call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
@@ -437,11 +449,13 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                 phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
                                         call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
                                         if (phip2 .gt. theta) then
-                                            ! planet and moon both partially overlap the star and each other but the moon-star overlap is contained within the planet-star overlap
+                                            ! planet and moon both partially overlap the star and each other but the 
+                                            ! moon-star overlap is contained within the planet-star overlap
                                             lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                                 - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                                         else
-                                            ! planet and moon both partially overlap star and each other but the planet-star intersections are overlapped by the planet
+                                            ! planet and moon both partially overlap star and each other but the 
+                                            ! planet-star intersections are overlapped by the planet
                                             lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
                                               - Arc(c1, c2, -theta, phip2, rp, bpi, &
                                                     -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
@@ -455,9 +469,12 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                         end if
                                 else if (thetapm + phip .lt. phim) then
                                     if ((bpi - rp) .lt. (bmi - rm)) then
-                                        ! planet and moon both partially overlap the star and each other but the planet-star intersections are overlapped by the moon
-                                        ! I'm not sure this is physical either -- can you draw a diagram where the moon overlaps both of the planet-star 
-                                        ! intersections without the planet-star overlap being entirely within the moon-star region of overlap?
+                                        ! planet and moon both partially overlap the star and each other but the 
+                                        ! planet-star intersections are overlapped by the moon
+                                        ! I'm not sure this is physical either -- can you draw a diagram where 
+                                        ! the moon overlaps both of the planet-star 
+                                        ! intersections without the planet-star overlap being entirely within 
+                                        ! the moon-star region of overlap?
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -475,8 +492,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                   phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
                                     else
-                                        ! planet and moon both partially overlap the star and each other but the planet-star overlap is 
-                                        ! entirely within the moon-star overlap
+                                        ! planet and moon both partially overlap the star and each other but 
+                                        ! the planet-star overlap is  entirely within the moon-star overlap
                                         call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
                                         lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
                                           - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
@@ -489,7 +506,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                     d1 = rm2 + bm2i - 2 * rm * bmi * cosphi1
                                     d2 = rm2 + bm2i - 2 * rm * bmi * cosphi2
                                     if (d1 .gt. 1.d0) then
-                                        ! planet and moon both partially overlap star and each other, but the planet/moon overlap does not overlap the star
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! but the planet/moon overlap does not overlap the star
                                         call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
                                         call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
                                         phi = phip + phim
@@ -497,7 +515,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                           - F(c1, c2, thetap, rp, bpi, theta_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
                                           - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_rm, thetam_rp, 0.d0, .FALSE.)) * of0
                                     else if (d2 .lt. 1.d0) then
-                                        ! planet and moon both partially overlap star and each other, with the planet/moon overlap fully overlapping the star
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! with the planet/moon overlap fully overlapping the star
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -520,7 +539,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
                                                   -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
                                                   phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
                                     else
-                                        ! planet and moon both partially overlap star and each other, with the planet/moon overlap partially overlapping the star
+                                        ! planet and moon both partially overlap star and each other, 
+                                        ! with the planet/moon overlap partially overlapping the star
                                         call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
                                                 phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
                                                 phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
@@ -552,6 +572,8 @@ subroutine flux(c1, c2, rp, rm, bp2, bm2, bpm2, lc, j) bind(C, name="flux")
     
 end
 
+! work out the right sign and order of the integration and call the integration routine 
+! to integrate along an arbitrary arc of the planet or moon 
 function Arc(c1, c2, phi1, phi2, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm, &
             phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm, pflag)
                     
@@ -604,6 +626,7 @@ function Arc(c1, c2, phi1, phi2, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_
     
 end function
 
+! integrate along the limb of the star
 function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
 
     real*8, dimension(8) :: Fstar
@@ -656,6 +679,7 @@ function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
     
 end function
 
+! integrate around the entire planet/moon 
 function Fcomplete(c1, c2, r, b, pflag)
 
     logical :: pflag
@@ -803,6 +827,7 @@ function Fcomplete(c1, c2, r, b, pflag)
 
 end function
 
+! evaluate the integral at one arbitrary limit along the planet or moon's boundary 
 function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
 
     real*8, dimension(8) :: F
