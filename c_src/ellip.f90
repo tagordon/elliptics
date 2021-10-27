@@ -403,12 +403,7 @@ real*8 function cel(kc, p, a, b)
     kc = abs(kc)
     e = kc
     m = 1.d0
-    
-    if (kc .eq. 0.d0)then
-        cel = 0.d0 
-        return
-    end if 
-    
+
     if (p .gt. 0.d0) then
         p = sqrt(p)
         b = b / p
