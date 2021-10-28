@@ -65,9 +65,8 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
     ! in order to transform into the correct coordinates 
     
     ! need a fix for when planet/moon are perfectly aligned. 
-    ! The angles are right but the derivatives aren't. Seems like 
-    ! they go to infinity (since the area of the trangle in the denominator
-    ! is zero), but I don't know what to do with that. 
+    ! The angles are right but the derivatives aren't -- they blow up 
+    ! at bpm = bp - bm and bpm = bm - bp
     if (bpm .eq. bm - bp) then
         phim = 0.d0
         phim_bpm = 0.d0
@@ -79,17 +78,16 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
         phip_bm = 0.d0
         phim_bp = 0.d0
     else if (bpm .eq. bp - bm) then
-        phim = pi
+        phim = 0.d0
         phim_bpm = 0.d0
         phim_bm = 0.d0
         phim_bp = 0.d0
         
-        phip = 0.d0
+        phip = pi
         phip_bpm = 0.d0
         phip_bm = 0.d0
         phim_bp = 0.d0
     else
-    
         a = bm
         b = bp
         c = bpm
@@ -747,17 +745,7 @@ function Fcomplete(c1, c2, r, b, pflag)
                 
                 Fl = eplusf + pisixth
                 Fl_r = eplusf_r                 
-            end if
-        else if (bpr == 1.d0) then
-                    
-            Fl = (2 * Sqrt((1.d0 - r) * r) * (1.d0 + 2 * r) * (-3.d0 + 4 * r) &
-               + 3 * Atan((2 * Sqrt((1.d0 - r) * r)) / (1.d0 - 2 * r))) * o9
-            
-            ! This is apparently wrong and I'm not sure why. 
-            Fl_r = 16 * r * Sqrt((1.d0 - r) * r) * o3
-            
-            Fl_b = Fl_r
-               
+            end if  
         else
         
             x = 1.d0 /  Sqrt((1.d0 - bmr) * (1.d0 + bmr))
@@ -1020,7 +1008,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
             
-        else if (bpr .lt. 1.d0) then 
+        else
         
             x = Sqrt((1.d0 - bmr) * (1.d0 + bmr))
             alpha = (7 * r2 + b2 - 4.d0) * x * o9
@@ -1069,28 +1057,6 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             Fl_phi = Fl_phi + d_phi
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
-            
-        else
-            ! b + r = 1
-            ! This is wrong right now! 
-            ! Can't be removed because when b+r = 1, m = 1, mc = 0, and bulirsch routines fail 
-                    
-            Fl = (-3 * pi + 3 * phi - 6 * Atan((-1.d0 + 2 * r ) * Cotan(0.5 * phi)) &
-               + 6 * Atan((2 * Sqrt(-((-1.d0 + r) * r)) * Sin(0.5 * phi)) / (1.d0 - 2 * r)) &
-               + 4 * Sqrt((1.d0 - r) * r) * (-3.d0 + 2 * r * (-2.d0 + 5 * r) &
-               + 2 * (-1.d0 + r) * r * Cos(phi)) * Sin(0.5 * phi)) / 18.d0
-            
-            Fl_r = (2 * (-(Sqrt((1.d0 - r) * r) * Cos(0.5 * phi)) + (1.d0 - r) * r2 * (13.d0 + r * (-25.d0 + 22 * r) &
-                 + (6.d0 + 4 * r * (-7.d0 + 6 * r)) * Cos(phi) + (1.d0 - 2 * r) * (1.d0 - r) &
-                 * Cos(2 * phi))) * Sin(0.5 * phi)) &
-                 / (3 * Sqrt((1.d0 - r) * r) * (1.d0 + 2 * (-1.d0 + r) * r + 2 * (-1.d0 + r) * r * Cos(phi)))
-                 
-            Fl_b = Fl_r
-               
-            Fl_phi = (r * (1.d0 - 8 * ((1.d0 - r) * r)**1.5 * Cos(phi * 0.5)**3.d0) &
-                   * (r + (r - 1.d0) * Cos(phi))) &
-                   / (3.d0 + 6 * (r - 1.d0) * r + 6 * (r - 1.d0) * r * Cos(phi))
-                               
         end if
         
         if (b .eq. 0.d0) then
