@@ -10,27 +10,49 @@ real*8, parameter :: pithird = 1.0471975511965976, pisixth = 0.5235987755982988
 
 contains
 
-! computes the angular location of the intersections between moon and planet from 
-! from the perspective of each body 
-subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
-    phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, phim2_bpm, phim2_bp, &
-    phim2_bm, phim2_rp, phim2_rm, phip1_bpm, phip1_bp, phip1_bm, &
-    phip1_rp, phip1_rm, phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
+subroutine phis(rp, rm, bp, bm, bpm, theta, pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
+                pm_rp, pm_rm, pm_bpm, pm_theta)
 
-    real*8 :: rp, rm, rp2, rm2, bp, bm, bpm, bpm2, denom
-    real*8, intent(out) :: phim1, phim2, phip1, phip2
-    real*8, intent(out) :: phim1_bpm, phim1_rp, phim1_rm, phip1_bpm, phip1_rm, phip1_rp
-    real*8, intent(out) :: phim2_bpm, phim2_rp, phim2_rm, phip2_bpm, phip2_rm, phip2_rp
-    real*8, intent(out) :: phim1_bm, phim1_bp, phim2_bm, phim2_bp, phip1_bm, phip1_bp, phip2_bm, phip2_bp
-    real*8 :: a, b, c, thetam, thetap, tmp, area, phip, phim
-    real*8 :: thetam_bpm, thetap_bpm, thetam_rm, thetap_rm, thetam_rp, thetap_rp
-    real*8 :: phim_bpm, phip_bpm, x, y, phim_bp, phim_bm, phip_bp, phip_bm
-
-    bpm2 = bpm * bpm
-    rp2 = rp * rp
-    rm2 = rm * rm
+    real*8 :: rp, rm, bp, bm, bpm, theta
     
-    ! first compute the angle from the planet center - moon center line 
+    ! intersection angle from planet center, intersection from moon center, same 
+    ! values relative to bp and bm vectors respectively
+    real*8 :: pp, pm, pp1, pm1, pp2, pm2
+    
+    ! derivatives 
+    real*8 :: pp_rp, pp_rm, pp_bpm ! pp_theta = 1
+    real*8 :: pm_rp, pm_rm, pm_bpm, pm_theta
+    
+    ! Four times the area of the triangle formed by rm, rp, and bpm
+    real*8 :: delta
+    ! Variables used in sorting the sides of the triangle
+    real*8 :: a, b, c, tmp
+    
+    ! angle between bpm vector and bm vector
+    real*8 :: thetam
+    
+    a = bp
+    b = bpm
+    c = bm
+    if (b .gt. a) then
+        tmp = b
+        b = a
+        a = tmp
+    end if
+    if (c .gt. b) then
+        tmp = c
+        c = b
+        b = tmp
+    end if
+    if (b .gt. a) then
+        tmp = b
+        b = a
+        a = tmp
+    end if
+    delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    thetam = Atan2(delta, (bm - bp) * (bm + bp) + bpm * bpm)
+    
+    ! find 4 * area of triangle using modified Heron's formula 
     a = rm
     b = bpm
     c = rp
@@ -49,128 +71,59 @@ subroutine compute_phis(rp, rm, bp, bm, bpm, phim1, phim2, phip1, phip2, &
         b = a
         a = tmp
     end if
-    area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     
-    thetam = Atan2(area, (rm - rp) * (rm + rp) + bpm2)
-    thetam_bpm = ((bpm + rm) * (rm - bpm) - rp2) / (area * bpm)
-    thetam_rp = 2 * rp / area
-    thetam_rm = ((bpm - rm) * (bpm + rm) - rp2) / (area * rm)
+    pm = Atan2(delta, (rm - rp) * (rm + rp) + bpm * bpm)    
+    pm_bpm = ((rm + bpm) * (rm - bpm) - rp * rp) / (delta * bpm)
+    pm_rp = 2 * rp / delta
+    pm_rm = ((bpm - rm) * (bpm + rm) - rp * rp) / (delta * rm)
+    pm_theta = bp * Cos(theta) / (bpm - bp * Cos(theta))
     
-    thetap = Atan2(area, (rp - rm) * (rp + rm) + bpm2)
-    thetap_bpm = ((rp - rm) * (rp + rm) - bpm2) / (bpm * area)
-    thetap_rp = ((bpm - rp) * (bpm + rp) - rm2) / (rp * area)
-    thetap_rm = 2 * rm / area
+    pp = Atan2(delta, (rp - rm) * (rp + rm) + bpm * bpm)
+    pp_bpm = ((rp - rm) * (rp + rm) - bpm * bpm) / (delta * bpm)
+    pp_rp = ((bpm - rp) * (bpm + rp) - rm * rm) / (delta * rp)
+    pp_rm = 2 * rm / delta
     
-    ! then compute the angle to the planet or moon from the x-axis 
-    ! in order to transform into the correct coordinates 
+    ! this might be slower, but try it instead of the if-then statements  
+    ! also check whether or not it's possible for pm1 or pp1 to be greater than pi
+    pm1 = thetam + pm
+    pm2 = thetam - pm
+    pp1 = theta + pp
+    pp2 = theta - pp
     
-    ! need a fix for when planet/moon are perfectly aligned. 
-    ! The angles are right but the derivatives aren't -- they blow up 
-    ! at bpm = bp - bm and bpm = bm - bp
-    if (bpm .eq. bm - bp) then
-        phim = 0.d0
-        phim_bpm = 0.d0
-        phim_bm = 0.d0
-        phim_bp = 0.d0
-        
-        phip = pi
-        phip_bpm = 0.d0
-        phip_bm = 0.d0
-        phim_bp = 0.d0
-    else if (bpm .eq. bp - bm) then
-        phim = 0.d0
-        phim_bpm = 0.d0
-        phim_bm = 0.d0
-        phim_bp = 0.d0
-        
-        phip = pi
-        phip_bpm = 0.d0
-        phip_bm = 0.d0
-        phim_bp = 0.d0
-    else
-        a = bm
-        b = bp
-        c = bpm
-        if (b .gt. a) then
-            tmp = b
-            b = a
-            a = tmp
-        end if
-        if (c .gt. b) then
-            tmp = c
-            c = b
-            b = tmp
-        end if
-        if (b .gt. a) then
-            tmp = b
-            b = a
-            a = tmp
-        end if
-        area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
-        phim = Atan2(area, (bm - bp) * (bm + bp) + bpm2)
-        phim_bpm = ((bm - bp) * (bm + bp) - bpm2) / (bpm * area)
-        phim_bm = ((bpm - bm) * (bpm + bm) - bp * bp) / (bm * area)
-        phim_bp = 2 * bp / area
+    !pm1 = pm1 - pi * (1.d0 - Sign(1.d0, pi - pm1))
+    !pp1 = pp1 - pi * (1.d0 - Sign(1.d0, pi - pp1))
     
-        phip = Atan2(area, (bp - bm) * (bp + bm) + bpm2)
-        phip_bpm = ((bp - bm) * (bp + bm) - bpm2) / (bpm * area)
-        phip_bm = 2 * bm / area
-        phip_bp = ((bpm + bp) * (bpm - bp) - bm * bm) / (bp * area)
+    if (pm1 .gt. pi) then
+        pm1 = pm1 - twopi
+    end if
+    if (pm2 .gt. pi) then
+        pm2 = pm2 - twopi
+    end if
+    if (pp1 .gt. pi) then
+        pp1 = pp1 - twopi
+    end if
+    if (pp2 .gt. pi) then
+        pp2 = pp2 - twopi
     end if
 
-    phim1 = phim + thetam
-    phim1_bpm = phim_bpm + thetam_bpm
-    phim1_bp = phim_bp
-    phim1_bm = phim_bm
-    phim1_rp = thetam_rp
-    phim1_rm = thetam_rm
-    
-    phim2 = phim - thetam
-    phim2_bpm = phim_bpm - thetam_bpm
-    phim2_bm = phim_bm
-    phim2_bp = phim_bp
-    phim2_rp = -thetam_rp
-    phim2_rm = -thetam_rm
-    
-    phip1 = phip + thetap
-    phip1_bpm = phip_bpm + thetap_bpm
-    phip1_bp = phip_bp
-    phip1_bm = phip_bm
-    phip1_rp = thetap_rp
-    phip1_rm = thetap_rm
-    
-    phip2 = phip - thetap
-    phip2_bpm = phip_bpm - thetap_bpm
-    phip2_bp = phip_bp
-    phip2_bm = phip_bm
-    phip2_rp = -thetap_rp
-    phip2_rm = -thetap_rm
-    
-    if (phim1 .gt. pi) then
-        phim1 = phim1 - twopi
-    end if
-    if (phim2 .gt. pi) then
-        phim2 = phim2 - twopi
-    end if
-    if (phip1 .gt. pi) then
-        phip1 = phip1 - twopi
-    end if
-    if (phip2 .gt. pi) then
-        phip2 = phip2 - twopi
-    end if
 end
 
-! computes the angle to the moon-star or planet-star intersections from the 
-! perspective of the moon/planet and the star
-subroutine compute_theta(rp, bp, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
+subroutine kappas_p(rp, bp, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
 
-    real*8 :: a, b, c, rp, bp, theta, phi
-    real*8 :: tmp, area, rp2, bp2, x
-    real*8 :: theta_bp, theta_rp, phi_bp, phi_rp
+    ! kp = angle to intersection from center of planet, 
+    ! kps = angle to intersection from center of star 
+    real*8 :: rp, bp, kp, kps
     
-    rp2 = rp * rp
-    bp2 = bp * bp
-        
+    ! derivatives 
+    real*8 :: kp_rp, kp_bp, kps_rp, kps_bp
+    
+    ! variables used in sorting sides of triangle
+    real*8 :: a, b, c
+    
+    ! four times the area of the triangle with sides rp, bp, and 1
+    real*8 :: delta
+    
     if (bp .gt. 1.d0) then
         a = bp
         b = 1.d0
@@ -184,47 +137,140 @@ subroutine compute_theta(rp, bp, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
         b = bp
         c = rp
     end if
+    delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    
+    kps = Atan2(delta, (1.d0 - rp) * (1.d0 + rp) + bp * bp)
+    kps_bp = ((rp + bp) * (rp - bp) - 1.d0) / (bp * delta)
+    kps_rp = ((bp + rp) * (bp - rp) - 1.d0) / (rp * delta)
+    
+    kp = Atan2(delta, (rp - 1.d0) * (rp + 1.d0) + bp * bp)
+    kp_bp = -((bp + 1.d0) * (bp - 1.d0) + rp * rp) / (bp * delta)
+    kp_rp = 2 * rp / delta
+end 
 
-    area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+subroutine kappas_m(rm, bp, bm, bpm, theta, km, kms, km_rm, km_bp, km_bpm, km_theta, &
+                    kms_rm, kms_bp, kms_bpm, kms_theta)
+
+    ! km = angle to interection from center of moon, 
+    ! kms = angle to intersection from center of planet
+    real*8 :: rm, bp, bm, bpm, theta, km, kms
     
-    theta = Atan2(area, (rp - 1.d0) * (rp + 1.d0) + bp2)
-    theta_bp = ((rp + bp) * (rp - bp) - 1.d0) / (bp * area)
-    theta_rp = ((bp + rp) * (bp - rp) - 1.d0) / (rp * area)
+    ! derivatives
+    real*8 :: km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta
     
-    phi = Atan2(area, (1.d0 - rp) * (1.d0 + rp) + bp2)
-    phi_bp = -((bp + 1.d0) * (bp - 1.d0) + rp2) / (bp * area)
-    phi_rp = 2 * rp / area
-end
+    ! variables used in sorting sides of triangle
+    real*8 :: a, b, c
+    
+    ! four times the area of the triangle with sides rm, bm, and 1
+    real*8 :: delta
+    
+    ! some useful quantities
+    real*8 :: denom, xs, xm, yp, ypm, ytheta
+    
+    xs = (1.d0 - bm) * (1.d0 + bm) - rm * rm
+    xm = (rm - bm) * (rm + bm) - 1.d0
+    yp = bp - bpm * Cos(theta)
+    ypm = bpm - bp * Cos(theta)
+    ytheta = bp * bpm * Sin(theta)
+    
+    if (bm .gt. 1.d0) then
+        a = bm
+        b = 1.d0
+        c = rm
+        if (rm .gt. bm) then
+            b = rm
+            c = bm
+        end if
+    else
+        a = 1.d0
+        b = bm
+        c = rm
+    end if
+    delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    denom = 1.d0 / (delta * bm * bm)
+    
+    km = Atan2(delta, (rm - 1.d0) * (rm + 1.d0) + bm * bm)
+    kms = Atan2(delta, (1.d0 - rm) * (1.d0 + rm) + bm * bm)
+    
+    km_rm = 2 * rm * bm * bm * denom
+    kms_rm = ((bm + rm) * (bm - rm) - 1.d0) / (rm * delta)
+    
+    km_theta = ytheta * xm * denom
+    kms_theta = ytheta * xs * denom
+    
+    km_bpm = ypm * xm * denom
+    kms_bpm = ypm * xs * denom
+    
+    km_bp = yp * xm * denom
+    kms_bp = yp * xs * denom
+end 
+
+subroutine bm_x(bp, bm, bpm, theta, bm_bp, bm_bpm, bm_theta)
+
+    real*8 :: bp, bm, bpm, theta
+    real*8 :: bm_bp, bm_bpm, bm_theta
+    real*8 :: obm 
+    
+    obm = 1.d0 / bm
+    bm_bp = (bp - bpm * Cos(theta)) * obm
+    bm_bpm = (bpm - bp * Cos(theta)) * obm
+    bm_theta = bp * bpm * Sin(theta) * obm
+end 
+
 
 ! main loop to compute the flux at each timestep by finding the correct geometry and
 ! calling the integration routines 
-subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
+subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
 
     integer (c_int), bind(C) :: j
     integer :: i
     real (c_double), bind(C) :: rp, rm
-    real (c_double), bind(C), dimension(j) :: bp, bm, bpm
+    real (c_double), bind(C), dimension(j) :: bp, theta, bpm
     real (c_double), bind(C), intent(out), dimension(8, j) :: lc
     real*8, dimension(8) :: f0
     real (c_double), bind(C) :: c1, c2
+    real*8 :: of0
     
-    real*8 :: theta, thetapm, phim1, phim2, phip1, phip2, thetap, thetam
-    real*8 :: phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, phip1_bpm, phip1_bp, phip1_bm, phip1_rm, phip1_rp
-    real*8 :: phim2_bpm, phim2_bp, phim2_bm, phip2_bp, phip2_bm, phim2_rp, phim2_rm, phip2_bpm, phip2_rm, phip2_rp
-    real*8 :: phim, phip, cosphim, cosphip, costhetapm, costheta, cosphi1, cosphi2
-    real*8 :: bp2i, bm2i, bpm2i, bpi, bmi, bpmi, rp2, rm2, obpi, obmi
-    real*8 :: thetap_bp, thetap_rp, phip_bp, phip_rp, thetam_bp, thetam_rp, phim_bp, phim_rp
-    real*8 :: theta_bp, theta_rp, phi_bp, phi_rp, phi, thetam_bm, thetam_rm, phi_bm, phi_rm
-    real*8 :: d1, d2, area, phim_bm, phim_rm, theta_bm, theta_rm, theta_bpm, thetapm_bpm
-    real*8 :: of0, a, b, c, tmp, thetapm_bp, thetapm_bm
+    ! half angles: from planet to planet/star intersection, moon to moon/star
+    ! intersection, spanned by planet on limb of star, spanned by moon on 
+    ! limb of star
+    real*8 :: kp, km, kps, kms
+        
+    ! derivatives of above angles
+    real*8 :: kp_rp, kp_bp, kps_rp, kps_bp
+    real*8 :: km_rm, km_bp, km_bpm, km_theta
+    real*8 :: kms_rm, kms_bp, kms_bpm, kms_theta
     
-    !real*8 :: bp2(j), bm2(j), bpm2(j)
-    !bp2 = bp * bp
-    !bm2 = bm * bm
-    !bpm2 = bpm * bpm
+    ! angles to planet-moon intersection from planet center 
+    !relative to bp vector (and derivatives)
+    real*8 :: pp1, pp2
+    real*8 :: pp_rp, pp_rm, pp_bpm ! pp_theta = 1
+    
+    ! angles to planet-moon intersection from moon center 
+    ! relative to bm vector (and derivatves)
+    real*8 :: pm1, pm2
+    real*8 :: pm_rp, pm_rm, pm_bpm, pm_theta
+    
+    ! used to determine cases for three body overlaps, might not be needed. 
+    ! Check if some of these (costheta, cosphi) can be removed when optimizing things later 
+    real*8 :: phi, phi_bpm, phi_bp, phi_bm, phi_theta, d1, d2, delta, a, b, c, tmp
+
+    ! self explanatory 
+    real*8 :: bpi, bmi, bpmi, rp2, rm2
+    
+    ! For chain rule stuff
+    real*8, dimension(j) :: bm, ctheta
+    real*8 :: obm, bm_bp, bm_bpm, bm_theta
     
     rp2 = rp * rp
     rm2 = rm * rm
+    
+    ctheta = Cos(theta)
+    bm = Sqrt((bp - bpm)**2.d0 + 4 * bp * bpm * Sin(theta * 0.5)**2.d0)
+    !obm = 1.d0 / bm
+    !bm_bp = (bp - bpm * ctheta) * obms
+    !bm_bpm = (bpm - bp * ctheta) * obm
+    !bm_theta = bp * bpm * Sin(theta) * obm
     
     ! normalization factors 
     f0(1) = (1.d0 - c1 - 2 * c2) * pi + (c1 + 2 * c2) * twopithree + c2 * pihalf
@@ -240,10 +286,7 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
     lc = 0.d0
     
     do i=1,j,1
-    
-        !bp2i = bp2(i)
-        !bm2i = bm2(i)
-        !bpm2i = bpm2(i)
+
         bpi = bp(i)
         bmi = bm(i)
         bpmi = bpm(i)
@@ -257,55 +300,69 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
                     ! neither planet nor moon overlap star 
                     lc(:, i) = f0 * of0
                 else
+                    call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                     if (bmi + rm .le. 1.d0) then
                         ! moon completely overlaps star, planet is outside of star
-                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rm, bmi, .FALSE.)) * of0
+                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rm, bmi, bm_bp, bm_bpm, bm_theta, .FALSE.)) * of0
                     else
                         ! moon partially overlaps star, planet is outside of star
-                        call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                        lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                                - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
+                        call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
+                        lc(:, i) = 2 * (Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                        - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                            bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
                     end if
                 end if
             else
                 if (bmi .gt. rm + 1.d0) then
                     if (bpi + rp .le. 1.d0) then
                         ! planet completely overlaps star, moon is outside of star
-                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
+                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                     else
                         ! planet partially overlaps star, moon is outside of star
-                        call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                        lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                              - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
+                        call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                        lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                        - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                            0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                     end if
                 else
+                    call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                     if (bpi + rp .le. 1.d0) then
                         if (bmi + rm .le. 1.d0) then
                             ! moon and planet both completely overlap star, they do not overlap each othe
-                            lc(:, i) = (f0 - 2 * (Fcomplete(c1, c2, rm, bmi, .FALSE.) &
-                                  + Fcomplete(c1, c2, rp, bpi, .TRUE.))) * of0
+                            lc(:, i) = (f0 - 2 * (Fcomplete(c1, c2, rm, bmi, bm_bp, bm_bpm, bm_theta, .FALSE.) &
+                                  + Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.))) * of0
                         else
                             ! planet completely overlaps star, moon partially overlaps star, they do not overlap each other
-                            call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                            lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                                  - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) &
-                                  - Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
+                            call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
+                            lc(:, i) = 2 * (Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                            - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                                bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.) &
+                                            - Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                         end if
                     else
                         if (bmi + rm .le. 1.d0) then
                             ! planet partially overlaps star, moon fully overlaps star, they do not overlap each other
-                            call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                            lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                  - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
-                                  - Fcomplete(c1, c2, rm, bmi, .FALSE.)) * of0
+                            call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                            lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) & 
+                                            - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                0.d0, 0.d0, 0.d0, .TRUE., .TRUE.) &
+                                            - Fcomplete(c1, c2, rm, bmi, bm_bp, bm_bpm, bm_theta, .FALSE.)) * of0
                         else
                             ! moon and planet both partially overlap star, but not each other
-                            call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                            call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
-                            phi = phip + phim
-                            lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
-                                  - F(c1, c2, thetap, rp, bpi, thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
-                                  - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_bm, thetam_rm, 0.d0, .FALSE.)) * of0
+                            call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                            call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
+                            lc(:, i) = 2 * (Fstar(c1, c2, pi - (kps + kms), -kps_rp, -kms_rm, &
+                                                  -(kps_bp + kms_bp), -kms_bpm, -kms_theta) &
+                                            - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                0.d0, 0.d0, 0.d0, .TRUE., .TRUE.) &
+                                            - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                                bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
                         end if
                     end if
                 end if
@@ -317,103 +374,117 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
                     lc(:, i) = f0
                 else
                     ! moon partially overlaps star, planet does not overlap star
-                    call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                    lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                            - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
+                    call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
+                    call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
+                    lc(:, i) = 2 * (Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                    - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                            bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
+
                 end if
             else
                 if (bmi .gt. rm + 1.d0) then
                     if (bpi + rp .le. 1.d0) then
                         ! planet fully overlaps star, moon does not overlap star
-                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
+                        lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                     else
                         ! planet partially overlaps star, moon does not overlap star
-                        call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)zoom
-                        
-                        lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                              - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
+                        ! planet partially overlaps star, moon is outside of star
+                        call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                        lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                        - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                            0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                     end if
                 else
                     if (bpi + rp .le. 1.d0) then
                         if (bmi + rm .le. 1.d0) then
                             if (bpmi + rm .le. rp) then
                                 ! moon and planet both overlap star, moon fully overlapped by planet
-                                lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, .TRUE.)) * of0
+                                lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                             else
                                 ! moon and planet both overlap star, moon and planet partially overlap each other 
-                                call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                    phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                    phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                    phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                    phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                lc(:, i) = (f0 - (Arc(c1, c2, phip1, phip2, rp, bpi, &
-                                                    phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                                    phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.) &
-                                                + Arc(c1, c2, phim1, phim2, rm, bmi, &
-                                                      phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
-                                                      phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .False.))) * of0
+                                ! bookmark
+                                call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
+                                call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
+                                          pm_rp, pm_rm, pm_bpm, pm_theta)
+                                lc(:, i) = (f0 - Arc(c1, c2, pp1, pp2, rp, bpi, &
+                                                     pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                                     -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                     0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.) &
+                                                + Arc(c1, c2, pm1, pm2, rm, bmi, &
+                                                     pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                                     -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                     bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
+                                !lc(2, i) = pp1
+                                !lc(3, i) = pp2
+                                !lc(4, i) = pm1
+                                !lc(5, i) = pm2
                             end if
-                        else 
-                            !if (bpmi + rm .le. rp) then
-                                ! not physical (planet fully overlaps star, moon partially 
-                                ! overlaps star while fully overlapped by planet.)
-                            !else
-                                ! planet fully overlaps star, moon partially overlaps star and partially overlaps planet. 
-                                call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                    phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                    phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                    phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                    phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                                lc(:, i) = (2 * Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                                  - Arc(c1, c2, -theta, phim2, rm, bmi, &
-                                        0.d0, 0.d0, -theta_bm, -theta_rm, 0.d0, &
-                                        phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.) &
-                                  - Arc(c1, c2, phim1, theta, rm, bmi, &
-                                        phim2_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
-                                        0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) &
-                                  - Arc(c1, c2, phip1, phip2, rp, bpi, &
-                                        phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                        phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
-                            !end if
+                        else
+                            call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
+                            call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
+                                      pm_rp, pm_rm, pm_bpm, pm_theta)
+                            call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
+                            lc(:, i) = (2 * Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                        - Arc(c1, c2, -km, pm2, rm, bmi, &
+                                              0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
+                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                              bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
+                                        - Arc(c1, c2, pm1, km, rm, bmi, &
+                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                              0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                              bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
+                                        - Arc(c1, c2, pp1, pp2, rp, bpi, &
+                                              pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                              -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                              0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.)) * of0
                         end if
                     else
                         if (bmi + rm .le. 1.d0) then 
                             if (bpmi + rm .le. rp) then
                                 ! planet partially overlaps star, moon fully overlaps star but is completely overlapped by planet 
-                                call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                    - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
+                                call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                                lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                                - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                    0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                             else
                                 ! planet partially overlaps star, moon fully overlaps star and only partially overlaps planet
-                                call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                    phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                    phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                    phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                    phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                  - Arc(c1, c2, -theta, phip2, rp, bpi, &
-                                        -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
-                                        phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.) &
-                                  - Arc(c1, c2, phip1, theta, rp, bpi, &
-                                        phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                        theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.) &
-                                  - Arc(c1, c2, phim1, phim2, rm, bmi, & 
-                                        phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
-                                        phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.)) * of0
+                                call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
+                                call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
+                                      pm_rp, pm_rm, pm_bpm, pm_theta)
+                                call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                                lc(:, i) = (2 * Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                            - Arc(c1, c2, -kp, pp2, rp, bpi, &
+                                                  -kp_rp, 0.d0, -kp_bp, 0.d0, 0.d0, &
+                                                  -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                  0.d0, 0.d0, 0.d0, .TRUE., .TRUE., .FALSE.) &
+                                            - Arc(c1, c2, pp1, kp, rp, bpi, &
+                                                  pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                                  kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                  0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .TRUE.) &
+                                            - Arc(c1, c2, pm1, pm2, rm, bmi, &
+                                                  pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                                  -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                  bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                             end if
                         else
-                            obpi = 1.d0 / bpi
-                            obmi = 1.d0 / bmi
                             if (bpmi + rm .le. rp) then
                                 ! planet and moon both partially overlap star but moon is fully overlapped by the planet
-                                call compute_theta(rp, bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                    - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
+                                call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                                lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                                - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                    0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                             else
-                                call compute_theta(rp,  bpi, theta, phip, theta_bp, theta_rp, phip_bp, phip_rp)
-                                call compute_theta(rm,  bmi, theta, phim, theta_bm, theta_rm, phim_bm, phim_rm)
+                                ! bookmark
+                                !call compute_theta(rp,  bpi, theta, phip, theta_bp, theta_rp, phip_bp, phip_rp)
+                                !call compute_theta(rm,  bmi, theta, phim, theta_bm, theta_rm, phim_bm, phim_rm)
+                                call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                                call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
+                                      km_rm, km_bp, km_bpm, km_theta, &
+                                      kms_rm, kms_bp, kms_bpm, kms_theta)
                                 
                                 a = bmi
                                 b = bpi
@@ -434,39 +505,46 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
                                     a = tmp
                                 end if
                                 
-                                area = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
-                                thetapm = Atan2(area, (bmi - bpmi) * (bmi + bpmi) + bpi * bpi)
-                                thetapm_bpm = 2 * bpmi / area
-                                thetapm_bm = ((bpi + bmi) * (bpi - bmi) - bpmi * bpmi) / (bmi * area)
-                                thetapm_bp = ((bmi + bpi) * (bmi - bpi) - bpmi * bpmi) / (bpi * area)
+                                delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+                                phi = Atan2(delta, (bmi - bpmi) * (bmi + bpmi) + bpi * bpi)
                                 
-                                if (thetapm + phim .le. phip) then
-                                        call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                                phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                                phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                                phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                                phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                        call compute_theta(rp,  bpi, theta, phi, theta_bp, theta_rp, phi_bp, phi_rp)
-                                        if (phip2 .gt. theta) then
+                                ! Probably need phi_theta rather than phi_bm
+                                phi_bpm = 2 * bpmi / delta
+                                phi_bm = ((bpi + bmi) * (bpi - bmi) - bpmi * bpmi) / (bmi * delta)
+                                phi_theta = phi_bm * bpi * bmi * Sin(theta(i)) / bmi
+                                phi_bp = ((bmi + bpi) * (bmi - bpi) - bpmi * bpmi) / (bpi * delta)
+                                
+                                call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
+                                          pm_rp, pm_rm, pm_bpm, pm_theta)
+                                
+                                if (phi + kms .le. kps) then
+                                                  
+                                        if (pp2 .gt. kp) then
                                             ! planet and moon both partially overlap the star and each other but the 
                                             ! moon-star overlap is contained within the planet-star overlap
-                                            lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                                - F(c1, c2, theta, rp, bpi, theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
+                                            lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                                            - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                                0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                                         else
                                             ! planet and moon both partially overlap star and each other but the 
                                             ! planet-star intersections are overlapped by the planet
-                                            lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -phi_bp, -phi_rp, 0.d0, 0.d0, 0.d0) &
-                                              - Arc(c1, c2, -theta, phip2, rp, bpi, &
-                                                    -theta_bp, -theta_rp, 0.d0, 0.d0, 0.d0, &
-                                                    phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.) &
-                                              - Arc(c1, c2, phip1, theta, rp, bpi, &
-                                                    phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                                    theta_bp, theta_rp, 0.d0, 0.d0, 0.d0, .TRUE.) &
-                                              - Arc(c1, c2, phim1, phim2, rm, bmi, &
-                                                    phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
-                                                    phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.)) * of0
+                                            call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
+                                            lc(:, i) = (2 * Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                                        - Arc(c1, c2, -kp, pp2, rp, bpi, &
+                                                              -kp_rp, 0.d0, -kp_bp, 0.d0, 0.d0, &
+                                                              -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .TRUE., .FALSE.) &
+                                                        - Arc(c1, c2, pp1, kp, rp, bpi, &
+                                                              pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                                              kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .TRUE.) &
+                                                        - Arc(c1, c2, pm1, pm2, rm, bmi, &
+                                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                                         end if
-                                else if (thetapm + phip .le. phim) then
+                                else if (phi + kps .le. kms) then
+                                    call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                     if ((bpi - rp) .le. (bmi - rm)) then
                                         ! planet and moon both partially overlap the star and each other but the 
                                         ! planet-star intersections are overlapped by the moon
@@ -474,89 +552,74 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
                                         ! the moon overlaps both of the planet-star 
                                         ! intersections without the planet-star overlap being entirely within 
                                         ! the moon-star region of overlap?
-                                        call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                                phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                                phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                                phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                                phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                        call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                                        lc(:, i) = (2 * Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                                            - Arc(c1, c2, -theta, phim2, rm, bmi, &
-                                                  0.d0, 0.d0, -theta_bm, -theta_rm, 0.d0, &
-                                                  phim2_bp, phim2_rp, phim2_bm, phim2_rm, phim2_bpm, .FALSE.) &
-                                            - Arc(c1, c2, phim1, theta, rm, bmi, &
-                                                  phim1_bp, phim1_rp, phim1_bm, phim1_rm, phim1_bpm, &
-                                                  0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) & 
-                                            - Arc(c1, c2, phip1, phip2, rp, bpi, &
-                                                  phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                                  phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
+                                        lc(:, i) = (2 * Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                                        - Arc(c1, c2, -km, pm2, rm, bmi, &
+                                                              0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
+                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
+                                                        - Arc(c1, c2, pm1, km, rm, bmi, &
+                                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                                              km_rm, 0.d0, km_bp, km_bpm, km_theta, &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
+                                                        - Arc(c1, c2, pp1, pp2, rp, bpi, &
+                                                              pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                                              -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.)) * of0
                                     else
                                         ! planet and moon both partially overlap the star and each other but 
                                         ! the planet-star overlap is  entirely within the moon-star overlap
-                                        call compute_theta(rm, bmi, theta, phi, theta_bm, theta_rm, phi_bm, phi_rm)
-                                        lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, 0.d0, 0.d0, -phi_bm, -phi_rm, 0.d0) &
-                                          - F(c1, c2, theta, rm, bmi, 0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.)) * of0
+                                        lc(:, i) = 2 * (Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
+                                                        - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                                            bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
                                     end if
                                 else
-                                    costheta = (bpmi * bpmi + bmi * bmi - bpi * bpi) / (2 * bpmi * bmi)
-                                    cosphim = (bpmi * bpmi + rm2 - rp2) / (2 * bpmi * rm)
-                                    cosphi1 = Cos(Acos(costheta) - Acos(cosphim))
-                                    cosphi2 = Cos(Acos(costheta) + Acos(cosphim))
-                                    d1 = rm2 + bmi * bmi - 2 * rm * bmi * cosphi1
-                                    d2 = rm2 + bmi * bmi - 2 * rm * bmi * cosphi2
+                                    d1 = rm2 + bmi * bmi - 2 * rm * bmi * Cos(pm2)
+                                    d2 = rm2 + bmi * bmi - 2 * rm * bmi * Cos(pm1)
+                                    call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                     if (d1 .gt. 1.d0) then
                                         ! planet and moon both partially overlap star and each other, 
                                         ! but the planet/moon overlap does not overlap the star
-                                        call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                                        call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
-                                        phi = phip + phim
-                                        lc(:, i) = 2 * (Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
-                                          - F(c1, c2, thetap, rp, bpi, theta_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) & 
-                                          - F(c1, c2, thetam, rm, bmi, 0.d0, 0.d0, thetam_rm, thetam_rp, 0.d0, .FALSE.)) * of0
+                                        lc(:, i) = 2 * (Fstar(c1, c2, pi - (kps + kms), -kps_rp, -kms_rm, &
+                                                              -(kps_bp + kms_bp), -kms_bpm, -kms_theta) &
+                                                        - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                            0.d0, 0.d0, 0.d0, .TRUE., .TRUE.) &
+                                                        - F(c1, c2, km, rm, bmi, 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                                            bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
                                     else if (d2 .le. 1.d0) then
                                         ! planet and moon both partially overlap star and each other, 
                                         ! with the planet/moon overlap fully overlapping the star
-                                        call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                                phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                                phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                                phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                                phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                        call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
-                                        call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                                        phi = phip + phim
-                                        lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -phip_bp, -phip_rp, -phim_bm, -phim_rm, 0.d0) &
-                                            - Arc(c1, c2, -thetam, -phim1, rm, bmi, &
-                                                  0.d0, 0.d0, -thetam_bm, -thetam_rm, 0.d0, &
-                                                  -phim1_bp, -phim1_rp, -phim1_bm, -phim1_rm, -phim1_bpm, .FALSE.) & 
-                                            - Arc(c1, c2, -phim2, thetam, rm, bmi, &
-                                                  -phim2_bp, -phim2_rp, -phim2_bm, -phim2_rm, -phim2_bpm, &
-                                                  0.d0, 0.d0, theta_bm, theta_rm, 0.d0, .FALSE.) &
-                                            - Arc(c1, c2, phip1, thetap, rp, bpi, &
-                                                  phip1_bp, phip1_rp, phip1_bm, phip1_rm, phip1_bpm, &
-                                                  thetap_bp, thetap_rp, 0.d0, 0.d0, 0.d0, .TRUE.) &
-                                            - Arc(c1, c2, -thetap, phip2, rp, bpi, &
-                                                  -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
-                                                  phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
+                                        lc(:, i) = (2 * Fstar(c1, c2, pi - (kps + kms), -kps_rp, -kms_rm, &
+                                                              -(kps_bp + kms_bp), -kms_bpm, -kms_theta) &
+                                                        - Arc(c1, c2, -km, -pm1, rm, bmi, &
+                                                              0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
+                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, -pm_theta, &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
+                                                        - Arc(c1, c2, -pm2, km, rm, bmi, &
+                                                              pm_rp, pm_rm, 0.d0, pm_bpm, -pm_theta, &
+                                                              0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
+                                                        - Arc(c1, c2, pp1, kp, rp, bpi, &
+                                                              pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
+                                                              kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .TRUE.) &
+                                                        - Arc(c1, c2, -kp, pp2, rp, bpi, &
+                                                              -kp_rp, 0.d0, -kp_bp, 0.d0, 0.d0, &
+                                                              -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .TRUE., .FALSE.)) * of0
                                     else
                                         ! planet and moon both partially overlap star and each other, 
                                         ! with the planet/moon overlap partially overlapping the star
-                                        call compute_phis(rp, rm, bpi, bmi, bpmi, phim1, phim2, phip1, phip2, &
-                                                phim1_bpm, phim1_bp, phim1_bm, phim1_rp, phim1_rm, &
-                                                phim2_bpm, phim2_bp, phim2_bm, phim2_rp, phim2_rm, &
-                                                phip1_bpm, phip1_bp, phip1_bm, phip1_rp, phip1_rm, &
-                                                phip2_bpm, phip2_bp, phip2_bm, phip2_rp, phip2_rm)
-                                        call compute_theta(rm, bmi, thetam, phim, thetam_bm, thetam_rm, phim_bm, phim_rm)
-                                        call compute_theta(rp, bpi, thetap, phip, thetap_bp, thetap_rp, phip_bp, phip_rp)
-                                        phi = 0.5 * (phip + phim + thetapm)
-                                        lc(:, i) = (2 * Fstar(c1, c2, pi - phi, -0.5 * (phip_bp + thetapm_bp), &
-                                                           -0.5 * phip_rp, -0.5 * (phim_bm + thetapm_bm), &
-                                                           -0.5 * phim_rm, -0.5 * thetapm_bpm) & 
-                                            - Arc(c1, c2, -phim2, thetam, rm, bmi, &
-                                                  -phim2_bp, -phim2_rp, -phim2_bm, -phim2_rm, -phim2_bpm, &
-                                                  0.d0, 0.d0, thetam_bm, thetam_rm, 0.d0, .FALSE.) & 
-                                            - Arc(c1, c2, -thetap, phip2, rp, bpi, &
-                                                  -thetap_bp, -thetap_rp, 0.d0, 0.d0, 0.d0, &
-                                                  phip2_bp, phip2_rp, phip2_bm, phip2_rm, phip2_bpm, .TRUE.)) * of0
+                                        lc(:, i) = (2 * Fstar(c1, c2, pi - (kps + kms + phi), -kps_rp, -kms_rm, &
+                                                              -(kps_bp + kms_bp + phi_bp), -(kms_bpm + phi_bpm), &
+                                                              -(kms_theta + phi_theta)) &
+                                                        - Arc(c1, c2, -pm2, km, rm, bmi, &
+                                                              pm_rp, pm_rm, 0.d0, pm_bpm, -pm_theta, &
+                                                              0.d0, km_rm, km_bp, km_bpm, km_theta,  &
+                                                              bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
+                                                        - Arc(c1, c2, -kp, pp2, rp, bpi, &
+                                                              -kp_rp, 0.d0, -kp_bp, 0.d0, 0.d0, &
+                                                              -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
+                                                              0.d0, 0.d0, 0.d0, .TRUE., .TRUE., .FALSE.)) * of0
                                     end if
                                 end if
                             end if
@@ -573,49 +636,61 @@ end
 
 ! work out the right sign and order of the integration and call the integration routine 
 ! to integrate along an arbitrary arc of the planet or moon 
-function Arc(c1, c2, phi1, phi2, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm, &
-            phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm, pflag)
+function Arc(c1, c2, phi1, phi2, r, b, phi1_rp, phi1_rm, phi1_bp, phi1_bpm, phi1_theta, &
+            phi2_rp, phi2_rm, phi2_bp, phi2_bpm, phi2_theta, bm_bp, bm_bpm, bm_theta, pflag, limbflag1, limbflag2)
                     
     real*8, dimension(8) :: Arc
 
-    logical :: pflag
-    real*8 :: phi1, phi2, r, b, c1, c2
-    real*8 :: phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm
-    real*8 :: phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm
+    logical :: pflag, limbflag1, limbflag2
+    real*8 :: phi1, phi2, r, b, c1, c2, bm_bp, bm_bpm, bm_theta
+    real*8 :: phi1_rp, phi1_rm, phi1_bp, phi1_bpm, phi1_theta
+    real*8 :: phi2_rp, phi2_rm, phi2_bp, phi2_bpm, phi2_theta
     real*8 :: const, lin, quad
         
     if (phi1 < 0) then
         if (phi2 > 0) then
-            Arc = F(c1, c2, phi2, r, b, phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm, pflag) &
-                + F(c1, c2, -phi1, r, b, -phi1_bp, -phi1_rp, -phi1_bm, -phi1_rm, -phi1_bpm, pflag)
+            Arc = F(c1, c2, phi2, r, b, phi2_rp, phi2_rm, phi2_bp, phi2_bpm, phi2_theta, &
+                    bm_bp, bm_bpm, bm_theta, pflag, limbflag2) &
+                + F(c1, c2, -phi1, r, b, -phi1_rp, -phi1_rm, -phi1_bp, -phi1_bpm, -phi1_theta, &
+                    bm_bp, bm_bpm, bm_theta, pflag, limbflag1)
             return
         else
             if (phi2 < phi1) then
-                Arc = 2 * Fcomplete(c1, c2, r, b, pflag) &
-                    + F(c1, c2, -phi1, r, b, -phi1_bp, -phi1_rp, -phi1_bm, -phi1_rm, -phi1_bpm, pflag) &
-                    - F(c1, c2, -phi2, r, b, -phi2_bp, -phi2_rp, -phi2_bm, -phi2_rm, -phi2_bpm, pflag)
+                Arc = 2 * Fcomplete(c1, c2, r, b, bm_bp, bm_bpm, bm_theta, pflag) &
+                    + F(c1, c2, -phi1, r, b, -phi1_rp, -phi1_rm, -phi1_bp, -phi1_bpm, -phi1_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag1) &
+                    - F(c1, c2, -phi2, r, b, -phi2_rp, -phi2_rm, -phi2_bp, -phi2_bpm, -phi2_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag2)
                 return
             else
-                Arc = - F(c1, c2, -phi2, r, b, -phi2_bp, -phi2_rp, -phi2_bm, -phi2_rm, -phi2_bpm, pflag) &
-                    + F(c1, c2, -phi1, r, b, -phi1_bp, -phi1_rp, -phi1_bm, -phi1_rm, -phi1_bpm, pflag)
+                Arc = - F(c1, c2, -phi2, r, b, -phi2_rp, -phi2_rm, -phi2_bp, -phi2_bpm, -phi2_theta, &
+                          bm_bp, bm_bpm, bm_theta, pflag, limbflag2) &
+                      + F(c1, c2, -phi1, r, b, -phi1_rp, -phi1_rm, -phi1_bp, -phi1_bpm, -phi1_theta, &
+                          bm_bp, bm_bpm, bm_theta, pflag, limbflag1)
                 return
             end if
         end if
     else
         if (phi2 < 0) then
-            Arc = 2 * Fcomplete(c1, c2, r, b, pflag) &
-                - F(c1, c2, phi1, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm, pflag) &
-                - F(c1, c2, -phi2, r, b, -phi2_bp, -phi2_rp, -phi2_bm, -phi2_rm, -phi2_bpm, pflag)
+            Arc = 2 * Fcomplete(c1, c2, r, b, bm_bp, bm_bpm, bm_theta, pflag) &
+                - F(c1, c2, phi1, r, b, phi1_rp, phi1_rm, phi1_bp, phi1_bpm, phi1_theta, &
+                    bm_bp, bm_bpm, bm_theta, pflag, limbflag1) &
+                - F(c1, c2, -phi2, r, b, -phi2_rp, -phi2_rm, -phi2_bp, -phi2_bpm, -phi2_theta, &
+                    bm_bp, bm_bpm, bm_theta, pflag, limbflag2)
             return
         else
             if (phi2 < phi1) then
-                Arc = 2 * Fcomplete(c1, c2, r, b, pflag) &
-                    + F(c1, c2, phi2, r, b, phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm, pflag) &
-                    - F(c1, c2, phi1, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm, pflag)
+                Arc = 2 * Fcomplete(c1, c2, r, b, bm_bp, bm_bpm, bm_theta, pflag) &
+                    + F(c1, c2, phi2, r, b, phi2_rp, phi2_rm, phi2_bp, phi2_bpm, phi2_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag2) &
+                    - F(c1, c2, phi1, r, b, phi1_rp, phi1_rm, phi1_bp, phi1_bpm, phi1_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag1)
                 return
             else
-                Arc = F(c1, c2, phi2, r, b, phi2_bp, phi2_rp, phi2_bm, phi2_rm, phi2_bpm, pflag) &
-                    - F(c1, c2, phi1, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_bpm, pflag)
+                Arc = F(c1, c2, phi2, r, b, phi2_rp, phi2_rm, phi2_bp, phi2_bpm, phi2_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag2) &
+                    - F(c1, c2, phi1, r, b, phi1_rp, phi1_rm, phi1_bp, phi1_bpm, phi1_theta, &
+                        bm_bp, bm_bpm, bm_theta, pflag, limbflag1)
                 return
             end if
         end if
@@ -626,52 +701,52 @@ function Arc(c1, c2, phi1, phi2, r, b, phi1_bp, phi1_rp, phi1_bm, phi1_rm, phi1_
 end function
 
 ! integrate along the limb of the star
-function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
+function Fstar(c1, c2, phi, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta)
 
     real*8, dimension(8) :: Fstar
 
     real*8 :: c1, c2, phi, Fc, Fq, Fl
-    real*8 :: Fc_bp, Fc_rp, Fc_bm, Fc_rm, Fc_bpm
-    real*8 :: Fq_bp, Fq_rp, Fq_bm, Fq_rm, Fq_bpm
-    real*8 :: Fl_bp, Fl_rp, Fl_bm, Fl_rm, Fl_bpm
+    real*8 :: Fc_bp, Fc_rp, Fc_bm, Fc_rm, Fc_bpm, Fc_theta
+    real*8 :: Fq_bp, Fq_rp, Fq_bm, Fq_rm, Fq_bpm, Fq_theta
+    real*8 :: Fl_bp, Fl_rp, Fl_bm, Fl_rm, Fl_bpm, Fl_theta
     real*8 :: Fc_phi, Fq_phi, Fl_phi
-    real*8 :: phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm
+    real*8 :: phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, phi_theta
     real*8 :: cc, cl, cq
     
     Fc = 0.5 * phi
     Fc_phi = 0.5
-    Fc_bp = Fc_phi * phi_bp
     Fc_rp = Fc_phi * phi_rp
-    Fc_bm = Fc_phi * phi_bm
     Fc_rm = Fc_phi * phi_rm
+    Fc_bp = Fc_phi * phi_bp
     Fc_bpm = Fc_phi * phi_bpm
+    Fc_theta = Fc_phi * phi_theta
 
     Fq = 0.25 * (phi + 0.5 * o3 * (Sin(2 * phi) - Sin(4 * phi)))
     Fq_phi = 0.5 * o3 * Cos(phi)**2.d0 * (5.d0 - 4 * Cos(2 * phi))
-    Fq_bp = Fq_phi * phi_bp
     Fq_rp = Fq_phi * phi_rp
-    Fq_bm = Fq_phi * phi_bm
     Fq_rm = Fq_phi * phi_rm
+    Fq_bp = Fq_phi * phi_bp
     Fq_bpm = Fq_phi * phi_bpm
+    Fq_theta = Fq_phi * phi_theta
     
     Fl = phi * o3
     Fl_phi = o3
-    Fl_bp = Fl_phi * phi_bp
     Fl_rp = Fl_phi * phi_rp
-    Fl_bm = Fl_phi * phi_bm
     Fl_rm = Fl_phi * phi_rm
+    Fl_bp = Fl_phi * phi_bp
     Fl_bpm = Fl_phi * phi_bpm
+    Fl_theta = Fl_phi * phi_theta
     
     cc = 1.d0 - c1 - 2 * c2
     cl = c1 + 2 * c2
     cq = c2
         
     Fstar(1) = cc * Fc + cl * Fl + cq * Fq
-    Fstar(2) = cc * Fc_bp + cl * Fl_bp + cq * Fq_bp
-    Fstar(3) = cc * Fc_rp + cl * Fl_rp + cq * Fq_rp
-    Fstar(4) = cc * Fc_bm + cl * Fl_bm + cq * Fq_bm
-    Fstar(5) = cc * Fc_rm + cl * Fl_rm + cq * Fq_rm
-    Fstar(6) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
+    Fstar(2) = cc * Fc_rp + cl * Fl_rp + cq * Fq_rp
+    Fstar(3) = cc * Fc_rm + cl * Fl_rm + cq * Fq_rm
+    Fstar(4) = cc * Fc_bp + cl * Fl_bp + cq * Fq_bp
+    Fstar(5) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
+    Fstar(6) = cc * Fc_theta + cl * Fl_theta + cq * Fq_theta
     Fstar(7) = - Fc + Fl 
     Fstar(8) = -2 * Fc + 2 * Fl + Fq
     return
@@ -679,22 +754,39 @@ function Fstar(c1, c2, phi, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm)
 end function
 
 ! integrate around the entire planet/moon 
-function Fcomplete(c1, c2, r, b, pflag)
+function Fcomplete(c1, c2, r, b, bm_bp, bm_bpm, bm_theta, pflag)
 
-    logical :: pflag
     real*8, dimension(8) :: Fcomplete
     
-    real*8 :: c1, c2, r, b, Fc, Fq, Fl
-    real*8 :: Fc_r, Fq_r, Fl_r, Fc_b, Fq_b, Fl_b
-    real*8 :: o, sqomm, nmo, mmn, mmo, obmr
-    real*8 :: cc, cl, cq
-    real*8 :: gamma, n, m, x, ox, y, tans, sphi, br, bmr, bpr
-    real*8 :: r2, b2, apb, apbo
-    real*8 :: ellippi, eplusf
-    real*8 :: ellippi_r, eplusf_r, alpha, alpha_r, beta, beta_r
-    real*8 :: ur, vr, pr, qr, m_r, n_r, gamma_r, denom
-    real*8 :: ub, vb, pb, qb, m_b, n_b, gamma_b, alpha_b, beta_b, eplusf_b, ellippi_b
-    real*8 :: ellipe, ellipf, sgn
+    ! Are we integrating along the edge of the moon or the planet? 
+    logical :: pflag
+    
+    ! Limb darkening params
+    real*8 :: c1, c2, cc, cl, cq
+    
+    ! self explanatory
+    real*8 :: r, b
+    
+    ! derivatives of input parameters 
+    real*8 :: bm_bp, bm_bpm, bm_theta
+    
+    ! convenient parameters
+    real*8 :: r2, b2, br, bmr, bpr, obmr
+    real*8 :: x, y, ox, ome, o
+    
+    ! components of flux and their derivatives
+    real*8 :: Fc, Fc_r, Fc_b, Fc_bp, Fc_bpm, Fc_theta
+    real*8 :: Fq, Fq_r, Fq_b, Fq_bp, Fq_bpm, Fq_theta
+    real*8 :: Fl, Fl_r, Fl_b, Fl_bp, Fl_bpm, Fl_theta
+    
+    ! For the integral
+    real*8 :: alpha, beta, gamma, d, n, m
+    real*8 :: d_r, d_b, sgn
+    real*8 :: ur, vr, ub, vb, sqomm
+    
+    ! Elliptic integrals
+    real*8 :: ellippi, ellipe, ellipf
+    real*8 :: eplusf, eplusf_r, eplusf_b
     
     r2 = r * r
     b2 = b * b
@@ -767,14 +859,16 @@ function Fcomplete(c1, c2, r, b, pflag)
     
     if (pflag) then
         Fcomplete(1) = cc * Fc + cl * Fl + cq * Fq
-        Fcomplete(2) = cc * Fc_b + cl * Fl_b + cq * Fq_b
-        Fcomplete(3) = cc * Fc_r + cl * Fl_r + cq * Fq_r
+        Fcomplete(2) = cc * Fc_r + cl * Fl_r + cq * Fq_r
+        Fcomplete(4) = cc * Fc_b + cl * Fl_b + cq * Fq_b
         Fcomplete(7) = - Fc + Fl 
         Fcomplete(8) = -2 * Fc + 2 * Fl + Fq
     else
-        Fcomplete(1) = cc * Fc + cl * Fl + c2 * Fq
-        Fcomplete(4) = cc * Fc_b + cl * Fl_b + c2 * Fq_b
-        Fcomplete(5) = cc * Fc_r + cl * Fl_r + c2 * Fq_r
+        Fcomplete(1) = cc * Fc + cl * Fl + cq * Fq
+        Fcomplete(3) = cc * Fc_r + cl * Fl_r + cq * Fq_r
+        Fcomplete(4) = (cc * Fc_b + cl * Fl_b + cq * Fq_b) * bm_bp
+        Fcomplete(5) = (cc * Fc_b + cl * Fl_b + cq * Fq_b) * bm_bpm
+        Fcomplete(6) = (cc * Fc_b + cl * Fl_b + cq * Fq_b) * bm_theta
         Fcomplete(7) = - Fc + Fl 
         Fcomplete(8) = -2 * Fc + 2 * Fl + Fq
     end if
@@ -783,25 +877,40 @@ function Fcomplete(c1, c2, r, b, pflag)
 end function
 
 ! evaluate the integral at one arbitrary limit along the planet or moon's boundary 
-function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
+function F(c1, c2, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, bm_bp, bm_bpm, bm_theta, pflag, limbflag)
 
     real*8, dimension(8) :: F
     
-    logical :: pflag
-    real*8 :: c1, c2, phi, cphi, r, b, Fc, Fq, Fl
-    real*8 :: phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm
-    real*8 :: Fc_r, Fc_b, Fc_phi, Fq_r, Fq_b, Fq_phi, Fl_r, Fl_b, Fl_phi
-    real*8 :: Fc_bp, Fc_rp, Fc_bm, Fc_rm, Fc_bpm
-    real*8 :: Fq_bp, Fq_rp, Fq_bm, Fq_rm, Fq_bpm
-    real*8 :: Fl_bp, Fl_rp, Fl_bm, Fl_rm, Fl_bpm
-    real*8 :: gamma, d, s, n, m, x, ox, y, oy, z, oz, ome, tans, sphi, br, bmr, bpr, o
-    real*8 :: r2, b2, tphihalf, sphihalf, cphihalf, alpha, beta, alpha_r, beta_r, gamma_r
-    real*8 :: d_phi, d_r, d_b, eplusf_phi, eplusf_r, eplusf_b, lpm, lpmo
-    real*8 :: ellippi, eplusf, ellipf, eplusf_m
-    real*8 :: m_r, m_b, n_r, n_b, ellippim, ellippi_m, ellippi_n, ellippi_r
-    real*8 :: u, v, q, p, ur, vr, qr, pr, ub, vb, qb, pb, ellippi_b, ellippe_r, kpluspi_r
-    real*8 :: alpha_b, beta_b, gamma_b, nmo, mmo, mmn, sqomm, denom, cc, cl, cq
-    real*8 :: ellipe, obmr
+    ! Are we integrating along the edge of the moon or the planet? 
+    logical :: pflag, limbflag
+    
+    ! Limb darkening params
+    real*8 :: c1, c2, cc, cl, cq
+    
+    ! self explanatory
+    real*8 :: phi, r, b
+    
+    ! derivatives of input parameters 
+    real*8 :: phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, phi_theta, bm_bp, bm_bpm, bm_theta
+    
+    ! convenient parameters
+    real*8 :: sphi, cphi, tphihalf, sphihalf, cphihalf
+    real*8 :: r2, b2, br, bmr, bpr, obmr
+    real*8 :: x, y, z, ox, oy, oz, ome, tans, o
+    
+    ! components of flux and their derivatives
+    real*8 :: Fc, Fc_phi, Fc_r, Fc_b, Fc_rp, Fc_rm, Fc_bp, Fc_bm, Fc_bpm, Fc_theta
+    real*8 :: Fq, Fq_phi, Fq_r, Fq_b, Fq_rp, Fq_rm, Fq_bp, Fq_bm, Fq_bpm, Fq_theta
+    real*8 :: Fl, Fl_phi, Fl_r, Fl_b, Fl_rp, Fl_rm, Fl_bp, Fl_bm, Fl_bpm, Fl_theta
+    
+    ! For the integral
+    real*8 :: alpha, beta, gamma, d, n, m
+    real*8 :: d_phi, d_r, d_b
+    real*8 :: ur, vr, ub, vb, pr, pb, sqomm
+    
+    ! Elliptic integrals
+    real*8 :: ellippi, ellipe, ellipf
+    real*8 :: eplusf, eplusf_r, eplusf_b
     
     r2 = r * r
     b2 = b * b
@@ -817,7 +926,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     tphihalf = sphihalf / cphihalf
     
     if (phi .eq. pi) then
-        F = Fcomplete(c1, c2, r, b, pflag)
+        F = Fcomplete(c1, c2, r, b, bm_bp, bm_bpm, bm_theta, pflag)
         return
     end if
         
@@ -826,11 +935,11 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     Fc_b = -0.5 * r * sphi
     Fc_r = 0.5 * (2 * r * phi - b * sphi)
     
-    Fc_bp = Fc_phi * phi_bp
     Fc_rp = Fc_phi * phi_rp
-    Fc_bm = Fc_phi * phi_bm
     Fc_rm = Fc_phi * phi_rm
-    Fc_bpm = Fc_phi * phi_bpm 
+    Fc_bp = Fc_phi * phi_bp
+    Fc_bpm = Fc_phi * phi_bpm
+    Fc_theta = Fc_phi * phi_theta
     
     Fq = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi &
        - 4 * r * (3 * (2 * b2 + r2) * phi &
@@ -846,11 +955,11 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     Fq_b = b * (r2 * phi - br * sphi * 0.5) &
         + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
                 
-    Fq_bp = Fq_phi * phi_bp
     Fq_rp = Fq_phi * phi_rp
-    Fq_bm = Fq_phi * phi_bm
     Fq_rm = Fq_phi * phi_rm
-    Fq_bpm = Fq_phi * phi_bpm 
+    Fq_bp = Fq_phi * phi_bp
+    Fq_bpm = Fq_phi * phi_bpm
+    Fq_theta = Fq_phi * phi_theta
         
     if (-c1 .eq. 2 * c2) then
         Fl = 0.d0
@@ -877,7 +986,7 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
             ub = 2 * r * (b2 + r2 - 1.d0) * o3 * oy
             vb = vr * o3
             
-            if (phi_bpm .eq. 0.d0) then
+            if (limbflag) then
             
                 d = phi * o3 * 0.5 - Atan(bpr * tphihalf * obmr) * o3
                 d_phi = (r2 - br * cphi) * o3 * ox
@@ -1005,34 +1114,44 @@ function F(c1, c2, phi, r, b, phi_bp, phi_rp, phi_bm, phi_rm, phi_bpm, pflag)
     cl = c1 + 2 * c2
     cq = c2
         
-    Fl_bp = Fl_phi * phi_bp
     Fl_rp = Fl_phi * phi_rp
-    Fl_bm = Fl_phi * phi_bm
     Fl_rm = Fl_phi * phi_rm
-    Fl_bpm = Fl_phi * phi_bpm 
+    Fl_bp = Fl_phi * phi_bp
+    Fl_bpm = Fl_phi * phi_bpm
+    Fl_theta = Fl_phi * phi_theta
     
     if (pflag) then
         Fq_bp = Fq_bp + Fq_b
         Fq_rp = Fq_rp + Fq_r
+        
         Fc_bp = Fc_bp + Fc_b
         Fc_rp = Fc_rp + Fc_r
+        
         Fl_bp = Fl_bp + Fl_b
         Fl_rp = Fl_rp + Fl_r
     else
-        Fq_bm = Fq_bm + Fq_b
+        Fq_theta = Fq_theta + Fq_b * bm_theta
+        Fq_bpm = Fq_bpm + Fq_b * bm_bpm
+        Fq_bp = Fq_bp + Fq_b * bm_bp
         Fq_rm = Fq_rm + Fq_r
-        Fc_bm = Fc_bm + Fc_b
+        
+        Fc_theta = Fc_theta + Fc_b * bm_theta
+        Fc_bpm = Fc_bm + Fc_b * bm_bpm
+        Fc_bp = Fc_bp + Fc_b * bm_bp
         Fc_rm = Fc_rm + Fc_r
-        Fl_bm = Fl_bm + Fl_b
+        
+        Fl_theta = Fl_theta + Fl_b * bm_theta
+        Fl_bpm = Fl_bm + Fl_b * bm_bpm
+        Fl_bp = Fl_bp + Fl_b * bm_bp
         Fl_rm = Fl_rm + Fl_r
     end if
     
     F(1) = cc * Fc + cl * Fl + cq * Fq
-    F(2) = cc * Fc_bp + cl * Fl_bp + cq * Fq_bp
-    F(3) = cc * Fc_rp + cl * Fl_rp + cq * Fq_rp
-    F(4) = cc * Fc_bm + cl * Fl_bm + cq * Fq_bm
-    F(5) = cc * Fc_rm + cl * Fl_rm + cq * Fq_rm
-    F(6) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
+    F(2) = cc * Fc_rp + cl * Fl_rp + cq * Fq_rp
+    F(3) = cc * Fc_rm + cl * Fl_rm + cq * Fq_rm
+    F(4) = cc * Fc_bp + cl * Fl_bp + cq * Fq_bp
+    F(5) = cc * Fc_bpm + cl * Fl_bpm + cq * Fq_bpm
+    F(6) = cc * Fc_theta + cl * Fl_theta + cq * Fq_theta
     F(7) = - Fc + Fl 
     F(8) = -2 * Fc + 2 * Fl + Fq
 
