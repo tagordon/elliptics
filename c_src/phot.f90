@@ -77,7 +77,7 @@ subroutine phis(rp, rm, bp, bm, bpm, theta, pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp
     pm_bpm = ((rm + bpm) * (rm - bpm) - rp * rp) / (delta * bpm)
     pm_rp = 2 * rp / delta
     pm_rm = ((bpm - rm) * (bpm + rm) - rp * rp) / (delta * rm)
-    pm_theta = bp * Cos(theta) / (bpm - bp * Cos(theta))
+    pm_theta = ((bpm - bm) * (bpm + bm) - bp * bp) / (2 * bm * bm)
     
     pp = Atan2(delta, (rp - rm) * (rp + rm) + bpm * bpm)
     pp_bpm = ((rp - rm) * (rp + rm) - bpm * bpm) / (delta * bpm)
@@ -408,14 +408,14 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
                                           pm_rp, pm_rm, pm_bpm, pm_theta)
-                                lc(:, i) = (f0 - (Arc(c1, c2, pp1, pp2, rp, bpi, &
+                                lc(:, i) = (f0 - Arc(c1, c2, pp1, pp2, rp, bpi, &
                                                      pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
                                                      -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
                                                      0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.) &
-                                                + Arc(c1, c2, pm1, pm2, rm, bmi, &
+                                                - Arc(c1, c2, pm1, pm2, rm, bmi, &
                                                      pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
                                                      -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
-                                                     bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.))) * of0
+                                                     bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                             end if
                         else
                             call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
