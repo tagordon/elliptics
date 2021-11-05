@@ -565,7 +565,7 @@ subroutine flux(c1, c2, rp, rm, bp, bm, bpm, lc, j) bind(C, name="flux")
             end if  
         end if
         lc(:, i) = lc(:, i) - f0 * of0
-    end do
+1   end do
     return
     
 end
