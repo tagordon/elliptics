@@ -408,18 +408,14 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
                                           pm_rp, pm_rm, pm_bpm, pm_theta)
-                                lc(:, i) = (f0 - Arc(c1, c2, pp1, pp2, rp, bpi, &
+                                lc(:, i) = (f0 - (Arc(c1, c2, pp1, pp2, rp, bpi, &
                                                      pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
                                                      -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
                                                      0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.) &
                                                 + Arc(c1, c2, pm1, pm2, rm, bmi, &
                                                      pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
                                                      -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
-                                                     bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
-                                !lc(2, i) = pp1
-                                !lc(3, i) = pp2
-                                !lc(4, i) = pm1
-                                !lc(5, i) = pm2
+                                                     bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.))) * of0
                             end if
                         else
                             call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
@@ -629,7 +625,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
             end if  
         end if
         lc(:, i) = lc(:, i) - f0 * of0
-    end do
+1   end do
     return
     
 end
