@@ -11,7 +11,7 @@ real*8, parameter :: pithird = 1.0471975511965976, pisixth = 0.5235987755982988
 contains
 
 subroutine phis(rp, rm, bp, bm, bpm, theta, pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
-                pm_rp, pm_rm, pm_bpm, pm_theta)
+                pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm)
 
     real*8 :: rp, rm, bp, bm, bpm, theta
     
@@ -21,7 +21,7 @@ subroutine phis(rp, rm, bp, bm, bpm, theta, pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp
     
     ! derivatives 
     real*8 :: pp_rp, pp_rm, pp_bpm ! pp_theta = 1
-    real*8 :: pm_rp, pm_rm, pm_bpm, pm_theta
+    real*8 :: pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm
     
     ! Four times the area of the triangle formed by rm, rp, and bpm
     real*8 :: delta
@@ -73,11 +73,13 @@ subroutine phis(rp, rm, bp, bm, bpm, theta, pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp
     end if
     delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     
-    pm = Atan2(delta, (rm - rp) * (rm + rp) + bpm * bpm)    
+    pm = Atan2(delta, (rm - rp) * (rm + rp) + bpm * bpm)   
+    pm_bp = 2 * bp / (bm * bpm * Sin(theta))
     pm_bpm = ((rm + bpm) * (rm - bpm) - rp * rp) / (delta * bpm)
     pm_rp = 2 * rp / delta
     pm_rm = ((bpm - rm) * (bpm + rm) - rp * rp) / (delta * rm)
     pm_theta = ((bpm - bm) * (bpm + bm) - bp * bp) / (2 * bm * bm)
+    thetam_bpm = ((bm - bpm) * (bm + bpm) - bp * bp) / (bpm * bpm * bm * Sin(theta))
     
     pp = Atan2(delta, (rp - rm) * (rp + rm) + bpm * bpm)
     pp_bpm = ((rp - rm) * (rp + rm) - bpm * bpm) / (delta * bpm)
@@ -140,12 +142,12 @@ subroutine kappas_p(rp, bp, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
     delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     
     kps = Atan2(delta, (1.d0 - rp) * (1.d0 + rp) + bp * bp)
-    kps_bp = ((rp + bp) * (rp - bp) - 1.d0) / (bp * delta)
-    kps_rp = ((bp + rp) * (bp - rp) - 1.d0) / (rp * delta)
+    kps_bp = ((1.d0 - bp) * (1.d0 + bp) - rp * rp) / (bp * delta)
+    kps_rp = 2 * rp / delta
     
     kp = Atan2(delta, (rp - 1.d0) * (rp + 1.d0) + bp * bp)
-    kp_bp = -((bp + 1.d0) * (bp - 1.d0) + rp * rp) / (bp * delta)
-    kp_rp = 2 * rp / delta
+    kp_bp = ((rp + bp) * (rp - bp) - 1.d0) / (bp * delta)
+    kp_rp = ((bp + rp) * (bp - rp) - 1.d0) / (rp * delta)
 end 
 
 subroutine kappas_m(rm, bp, bm, bpm, theta, km, kms, km_rm, km_bp, km_bpm, km_theta, &
@@ -192,8 +194,8 @@ subroutine kappas_m(rm, bp, bm, bpm, theta, km, kms, km_rm, km_bp, km_bpm, km_th
     km = Atan2(delta, (rm - 1.d0) * (rm + 1.d0) + bm * bm)
     kms = Atan2(delta, (1.d0 - rm) * (1.d0 + rm) + bm * bm)
     
-    km_rm = 2 * rm * bm * bm * denom
-    kms_rm = ((bm + rm) * (bm - rm) - 1.d0) / (rm * delta)
+    km_rm = ((bm + rm) * (bm - rm) - 1.d0) / (rm * delta)
+    kms_rm = 2 * rm * bm * bm * denom
     
     km_theta = ytheta * xm * denom
     kms_theta = ytheta * xs * denom
@@ -249,7 +251,9 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
     ! angles to planet-moon intersection from moon center 
     ! relative to bm vector (and derivatves)
     real*8 :: pm1, pm2
-    real*8 :: pm_rp, pm_rm, pm_bpm, pm_theta
+    real*8 :: pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta
+    ! derivative of angle between bpm and bm vector with respect to bpm
+    real*8 :: thetam_bpm
     
     ! used to determine cases for three body overlaps, might not be needed. 
     ! Check if some of these (costheta, cosphi) can be removed when optimizing things later 
@@ -407,30 +411,30 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 ! bookmark
                                 call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
-                                          pm_rp, pm_rm, pm_bpm, pm_theta)
+                                          pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm)
                                 lc(:, i) = (f0 - Arc(c1, c2, pp1, pp2, rp, bpi, &
                                                      pp_rp, pp_rm, 0.d0, pp_bpm, 1.d0, &
                                                      -pp_rp, -pp_rm, 0.d0, -pp_bpm, 1.d0, &
                                                      0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .FALSE.) &
                                                 - Arc(c1, c2, pm1, pm2, rm, bmi, &
-                                                     pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
-                                                     -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                     pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, pm_theta, &
+                                                     -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, pm_theta, &
                                                      bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                             end if
                         else
                             call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                             call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
-                                      pm_rp, pm_rm, pm_bpm, pm_theta)
+                                      pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm)
                             call kappas_m(rm, bpi, bmi, bpmi, theta(i), km, kms, &
                                       km_rm, km_bp, km_bpm, km_theta, &
                                       kms_rm, kms_bp, kms_bpm, kms_theta)
                             lc(:, i) = (2 * Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
                                         - Arc(c1, c2, -km, pm2, rm, bmi, &
                                               0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
-                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                              -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, pm_theta, &
                                               bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
                                         - Arc(c1, c2, pm1, km, rm, bmi, &
-                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                              pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, pm_theta, &
                                               0.d0, km_rm, km_bp, km_bpm, km_theta, &
                                               bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
                                         - Arc(c1, c2, pp1, pp2, rp, bpi, &
@@ -450,7 +454,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 ! planet partially overlaps star, moon fully overlaps star and only partially overlaps planet
                                 call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
-                                      pm_rp, pm_rm, pm_bpm, pm_theta)
+                                      pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm)
                                 call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
                                 lc(:, i) = (2 * Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
                                             - Arc(c1, c2, -kp, pp2, rp, bpi, &
@@ -462,8 +466,8 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                   kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
                                                   0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .TRUE.) &
                                             - Arc(c1, c2, pm1, pm2, rm, bmi, &
-                                                  pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
-                                                  -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                  pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, pm_theta, &
+                                                  -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, pm_theta, &
                                                   bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                             end if
                         else
@@ -511,7 +515,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 phi_bp = ((bmi + bpi) * (bmi - bpi) - bpmi * bpmi) / (bpi * delta)
                                 
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
-                                          pm_rp, pm_rm, pm_bpm, pm_theta)
+                                          pm_rp, pm_rm, pm_bp, pm_bpm, pm_theta, thetam_bpm)
                                 
                                 if (phi + kms .le. kps) then
                                                   
@@ -535,8 +539,8 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                               kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
                                                               0.d0, 0.d0, 0.d0, .TRUE., .FALSE., .TRUE.) &
                                                         - Arc(c1, c2, pm1, pm2, rm, bmi, &
-                                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
-                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                              pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, pm_theta, &
+                                                              -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, pm_theta, &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .FALSE.)) * of0
                                         end if
                                 else if (phi + kps .le. kms) then
@@ -551,10 +555,10 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                         lc(:, i) = (2 * Fstar(c1, c2, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
                                                         - Arc(c1, c2, -km, pm2, rm, bmi, &
                                                               0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
-                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, pm_theta, &
+                                                              -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, pm_theta, &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
                                                         - Arc(c1, c2, pm1, km, rm, bmi, &
-                                                              pm_rp, pm_rm, 0.d0, pm_bpm, pm_theta, &
+                                                              pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, pm_theta, &
                                                               km_rm, 0.d0, km_bp, km_bpm, km_theta, &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
                                                         - Arc(c1, c2, pp1, pp2, rp, bpi, &
@@ -588,10 +592,10 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                               -(kps_bp + kms_bp), -kms_bpm, -kms_theta) &
                                                         - Arc(c1, c2, -km, -pm1, rm, bmi, &
                                                               0.d0, -km_rm, -km_bp, -km_bpm, -km_theta, &
-                                                              -pm_rp, -pm_rm, 0.d0, -pm_bpm, -pm_theta, &
+                                                              -pm_rp, -pm_rm, -pm_bp, -pm_bpm + thetam_bpm, -pm_theta, &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE., .FALSE.) &
                                                         - Arc(c1, c2, -pm2, km, rm, bmi, &
-                                                              pm_rp, pm_rm, 0.d0, pm_bpm, -pm_theta, &
+                                                              pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, -pm_theta, &
                                                               0.d0, km_rm, km_bp, km_bpm, km_theta, &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
                                                         - Arc(c1, c2, pp1, kp, rp, bpi, &
@@ -609,7 +613,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                               -(kps_bp + kms_bp + phi_bp), -(kms_bpm + phi_bpm), &
                                                               -(kms_theta + phi_theta)) &
                                                         - Arc(c1, c2, -pm2, km, rm, bmi, &
-                                                              pm_rp, pm_rm, 0.d0, pm_bpm, -pm_theta, &
+                                                              pm_rp, pm_rm, pm_bp, pm_bpm + thetam_bpm, -pm_theta, &
                                                               0.d0, km_rm, km_bp, km_bpm, km_theta,  &
                                                               bm_bp, bm_bpm, bm_theta, .FALSE., .FALSE., .TRUE.) &
                                                         - Arc(c1, c2, -kp, pp2, rp, bpi, &
@@ -1132,12 +1136,12 @@ function F(c1, c2, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, bm_bp,
         Fq_rm = Fq_rm + Fq_r
         
         Fc_theta = Fc_theta + Fc_b * bm_theta
-        Fc_bpm = Fc_bm + Fc_b * bm_bpm
+        Fc_bpm = Fc_bpm + Fc_b * bm_bpm
         Fc_bp = Fc_bp + Fc_b * bm_bp
         Fc_rm = Fc_rm + Fc_r
         
         Fl_theta = Fl_theta + Fl_b * bm_theta
-        Fl_bpm = Fl_bm + Fl_b * bm_bpm
+        Fl_bpm = Fl_bpm + Fl_b * bm_bpm
         Fl_bp = Fl_bp + Fl_b * bm_bp
         Fl_rm = Fl_rm + Fl_r
     end if
