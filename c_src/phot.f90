@@ -393,7 +393,6 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                         ! planet fully overlaps star, moon does not overlap star
                         lc(:, i) = (f0 - 2 * Fcomplete(c1, c2, rp, bpi, 0.d0, 0.d0, 0.d0, .TRUE.)) * of0
                     else
-                        ! planet partially overlaps star, moon does not overlap star
                         ! planet partially overlaps star, moon is outside of star
                         call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
                         lc(:, i) = 2 * (Fstar(c1, c2, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
@@ -478,7 +477,6 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                 - F(c1, c2, kp, rp, bpi, kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
                                                     0.d0, 0.d0, 0.d0, .TRUE., .TRUE.)) * of0
                             else
-                                ! bookmark
                                 !call compute_theta(rp,  bpi, theta, phip, theta_bp, theta_rp, phip_bp, phip_rp)
                                 !call compute_theta(rm,  bmi, theta, phim, theta_bm, theta_rm, phim_bm, phim_rm)
                                 call kappas_p(rp, bpi, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
@@ -509,16 +507,14 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                 phi = Atan2(delta, (bmi - bpmi) * (bmi + bpmi) + bpi * bpi)
                                 
                                 ! Probably need phi_theta rather than phi_bm
-                                phi_bpm = 2 * bpmi / delta
-                                phi_bm = ((bpi + bmi) * (bpi - bmi) - bpmi * bpmi) / (bmi * delta)
-                                phi_theta = phi_bm * bpi * bmi * Sin(theta(i)) / bmi
-                                phi_bp = ((bmi + bpi) * (bmi - bpi) - bpmi * bpmi) / (bpi * delta)
+                                phi_bpm = bpi * Sin(theta(i)) / (bmi * bmi)
+                                phi_theta = bpmi * (bpi * Cos(theta(i)) - bpmi) / (bmi * bmi)
+                                phi_bp = - bpmi * Sin(theta(i)) / (bmi * bmi)
                                 
                                 call phis(rp, rm, bpi, bmi, bpmi, theta(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
                                           pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta)
                                 
-                                if (phi + kms .le. kps) then
-                                                  
+                                if (phi + kms .le. kps) then         
                                         if (pp2 .gt. kp) then
                                             ! planet and moon both partially overlap the star and each other but the 
                                             ! moon-star overlap is contained within the planet-star overlap
@@ -573,6 +569,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                                             bm_bp, bm_bpm, bm_theta, .FALSE., .TRUE.)) * of0
                                     end if
                                 else
+                                    ! bookmark
                                     d1 = rm2 + bmi * bmi - 2 * rm * bmi * Cos(pm2)
                                     d2 = rm2 + bmi * bmi - 2 * rm * bmi * Cos(pm1)
                                     call bm_x(bpi, bmi, bpmi, theta(i), bm_bp, bm_bpm, bm_theta)
@@ -609,9 +606,9 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, theta, lc, j) bind(C, name="flux")
                                     else
                                         ! planet and moon both partially overlap star and each other, 
                                         ! with the planet/moon overlap partially overlapping the star
-                                        lc(:, i) = (2 * Fstar(c1, c2, pi - (kps + kms + phi), -kps_rp, -kms_rm, &
-                                                              -(kps_bp + kms_bp + phi_bp), -(kms_bpm + phi_bpm), &
-                                                              -(kms_theta + phi_theta)) &
+                                        lc(:, i) = (2 * Fstar(c1, c2, pi - 0.5 * (kps + kms + phi), -0.5 * kps_rp, -0.5 * kms_rm, &
+                                                              -0.5 * (kps_bp + kms_bp + phi_bp), -0.5 * (kms_bpm + phi_bpm), &
+                                                              -0.5 * (kms_theta + phi_theta)) &
                                                         - Arc(c1, c2, -pm2, km, rm, bmi, &
                                                               pm_rp, pm_rm, -thetam_bp, pm_bpm - thetam_bpm, -thetam_theta, &
                                                               0.d0, km_rm, km_bp, km_bpm, km_theta,  &
