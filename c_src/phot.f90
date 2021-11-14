@@ -310,16 +310,11 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                 end if
             else
                 if (bm(i) .gt. rm + 1.d0) then
-                    if (bp(i) + rp .le. 1.d0) then
-                        ! planet fully overlaps star, moon does not overlap star
-                        lc(:, i) = (f0 - 2 * Fcomplete(ld, rp, bp(i), dbm0, .TRUE.)) * of0
-                    else
-                        ! planet partially overlaps star, moon is outside of star
-                        call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
-                        lc(:, i) = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
-                                        - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
-                                            dbm0, .TRUE., .TRUE.)) * of0
-                    end if
+                    ! planet partially overlaps star, moon is outside of star
+                    call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                    lc(:, i) = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
+                                    - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+                                        dbm0, .TRUE., .TRUE.)) * of0
                 else
                     if (bp(i) + rp .le. 1.d0) then
                         if (bm(i) + rm .le. 1.d0) then
@@ -342,6 +337,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                                                      dbm, .FALSE., .FALSE., .FALSE.)) * of0
                             end if
                         else
+                            ! planet fully overlaps star, moon partially overlaps star, both overlap each other 
                             call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
                             call phis(rp, rm, bp(i), bm(i), bpm(i), cth(i), sth(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
                                       pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta)
@@ -438,7 +434,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                                                                 dbm0, .TRUE., .TRUE.)) * of0
                                         else
                                             ! planet and moon both partially overlap star and each other but the 
-                                            ! planet-star intersections are overlapped by the planet
+                                            ! moon-star intersections are overlapped by the planet
                                             call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
                                             lc(:, i) = (2 * Fstar(ld, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
                                                         - Arc(ld, -kp, pp2, rp, bp(i), &
