@@ -260,92 +260,43 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
     f0(8) = -2 * pi + 2 * twopithree + pihalf
     
     of0 = 1.d0 / f0(1)
-    lc = 0.d0
     
     do i=1,j,1
-        
-        if ((bp(i) .gt. rp + 1.d0) .AND. (bm(i) .gt. rm + 1.d0)) then
-            ! neither planet nor moon overlap star
-            lc(:, i) = f0 * of0
-        else if (bpm(i) .gt. rp + rm) then
-            if (bp(i) .gt. rp + 1.d0) then
-                if (bm(i) .gt. rm + 1.d0) then
-                    ! neither planet nor moon overlap star 
-                    lc(:, i) = f0 * of0
-                else
-                    call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
-                    if (bm(i) + rm .le. 1.d0) then
-                        ! moon completely overlaps star, planet is outside of star
-                        lc(:, i) = (f0 - 2 * Fcomplete(ld, rm, bm(i), dbm, .FALSE.)) * of0
-                    else
-                        ! moon partially overlaps star, planet is outside of star
-                        call kappas_m(rm, bp(i), bm(i), bpm(i), cth(i), sth(i), km, kms, &
-                                      km_rm, km_bp, km_bpm, km_theta, &
-                                      kms_rm, kms_bp, kms_bpm, kms_theta)
-                        lc(:, i) = 2 * (Fstar(ld, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
-                                        - F(ld, km, rm, bm(i), 0.d0, km_rm, km_bp, km_bpm, km_theta, &
-                                            dbm, .FALSE., .TRUE.)) * of0
-                    end if
-                end if
-            else
-                if (bm(i) .gt. rm + 1.d0) then
-                    if (bp(i) + rp .le. 1.d0) then
-                        ! planet completely overlaps star, moon is outside of star
-                        lc(:, i) = (f0 - 2 * Fcomplete(ld, rp, bp(i), dbm0, .TRUE.)) * of0
-                    else
-                        ! planet partially overlaps star, moon is outside of star
-                        call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
-                        lc(:, i) = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) &
-                                        - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
+    
+        lc(:, i) = f0 * of0
+    
+        if (bpm(i) .gt. rp + rm) then
+            ! moon and planet don't overlap each other 
+            if (bp(i) .lt. 1.d0 - rp) then
+                ! planet completely inside star
+                lc(:, i) = lc(:, i) - 2 * Fcomplete(ld, rp, bp(i), dbm0, .TRUE.) * of0
+            else if (bp(i) .lt. 1.d0 + rp) then
+                ! planet partially overlaps star
+                call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
+                lc(:, i) = lc(:, i) - 2 * (Fstar(ld, kps, kps_rp, 0.d0, kps_bp, 0.d0, 0.d0) &
+                                    + F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
                                             dbm0, .TRUE., .TRUE.)) * of0
-
-                    end if
-                else
-                    call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
-                    if (bp(i) + rp .le. 1.d0) then
-                        if (bm(i) + rm .le. 1.d0) then
-                            ! moon and planet both completely overlap star, they do not overlap each othe
-                            lc(:, i) = (f0 - 2 * (Fcomplete(ld, rm, bm(i), dbm, .FALSE.) &
-                                  + Fcomplete(ld, rp, bp(i), dbm0, .TRUE.))) * of0
-                        else
-                            ! planet completely overlaps star, moon partially overlaps star, they do not overlap each other
-                            call kappas_m(rm, bp(i), bm(i), bpm(i), cth(i), sth(i), km, kms, &
-                                      km_rm, km_bp, km_bpm, km_theta, &
-                                      kms_rm, kms_bp, kms_bpm, kms_theta)
-                            lc(:, i) = 2 * (Fstar(ld, pi - kms, 0.d0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta) &
-                                            - F(ld, km, rm, bm(i), 0.d0, km_rm, km_bp, km_bpm, km_theta, &
-                                                dbm, .FALSE., .TRUE.) &
-                                            - Fcomplete(ld, rp, bp(i), dbm0, .TRUE.)) * of0
-                        end if
-                    else
-                        if (bm(i) + rm .le. 1.d0) then
-                            ! planet partially overlaps star, moon fully overlaps star, they do not overlap each other
-                            call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
-                            lc(:, i) = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.d0, -kps_bp, 0.d0, 0.d0) & 
-                                            - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
-                                                dbm0, .TRUE., .TRUE.) &
-                                            - Fcomplete(ld, rm, bm(i), dbm, .FALSE.)) * of0
-                        else
-                            ! moon and planet both partially overlap star, but not each other
-                            call kappas_p(rp, bp(i), kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
-                            call kappas_m(rm, bp(i), bm(i), bpm(i), cth(i), sth(i), km, kms, &
-                                      km_rm, km_bp, km_bpm, km_theta, &
-                                      kms_rm, kms_bp, kms_bpm, kms_theta)
-                            lc(:, i) = 2 * (Fstar(ld, pi - (kps + kms), -kps_rp, -kms_rm, &
-                                                  -(kps_bp + kms_bp), -kms_bpm, -kms_theta) &
-                                            - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
-                                                dbm0, .TRUE., .TRUE.) &
-                                            - F(ld, km, rm, bm(i), 0.d0, km_rm, km_bp, km_bpm, km_theta, &
-                                                dbm, .FALSE., .TRUE.)) * of0
-                        end if
-                    end if
-                end if
+            end if
+            if (bm(i) .lt. 1.d0 - rm) then
+                ! moon completely inside star
+                call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
+                lc(:, i) = lc(:, i) - 2 * Fcomplete(ld, rm, bm(i), dbm, .FALSE.) * of0
+            else if (bm(i) .lt. 1.d0 + rm) then
+                ! moon partially overlaps star
+                call kappas_m(rm, bp(i), bm(i), bpm(i), cth(i), sth(i), km, kms, &
+                              km_rm, km_bp, km_bpm, km_theta, &
+                              kms_rm, kms_bp, kms_bpm, kms_theta)
+                call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
+                lc(:, i) = lc(:, i) - 2 * (Fstar(ld, kms, 0.d0, kms_rm, kms_bp, kms_bpm, kms_theta) &
+                                    + F(ld, km, rm, bm(i), 0.d0, km_rm, km_bp, km_bpm, km_theta, &
+                                            dbm, .FALSE., .TRUE.)) * of0
             end if
         else
+            ! moon and planet do overlap each other 
             if (bp(i) .gt. rp + 1.d0) then
                 if (bm(i) .gt. rm + 1.d0) then
                     ! neither moon nor planet overlap star
-                    lc(:, i) = f0
+                    lc(:, i) = f0 * of0
                 else
                     ! moon partially overlaps star, planet does not overlap star
                     call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
@@ -926,7 +877,7 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
         if (bpr .gt. 1.d0) then
         
             y = Sqrt(br)
-            oy = 1.d0 / Sqrt(br)
+            oy = 1.d0 / y
             ox = 1.d0 / (b2 + r2 - 2 * br * cphi)
             
             alpha = 2 * y * (7 * r2 + b2 - 4.d0) * o9
