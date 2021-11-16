@@ -323,7 +323,6 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                                 lc(:, i) = (f0 - 2 * Fcomplete(ld, rp, bp(i), dbm0, .TRUE.)) * of0
                             else
                                 ! moon and planet both overlap star, moon and planet partially overlap each other 
-                                ! bookmark
                                 call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
                                 call phis(rp, rm, bp(i), bm(i), bpm(i), cth(i), sth(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
                                           pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta)
@@ -892,11 +891,10 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
             if (limbflag) then
             
                 d = phi * o3 * 0.5 - Atan(bpr * tphihalf * obmr) * o3
-                d_phi = (r2 - br * cphi) * o3 * ox
                 d_r = - b * sphi * o3 * ox
                 d_b = r * sphi * o3 * ox
                 
-                Fl_phi = 0.d0
+                Fl_phi = (r2 - br * cphi) * o3 * ox
                 pr = 0.d0
                 pb = 0.d0
                 
@@ -913,15 +911,10 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
                 oz = 1.d0 / z
                 d = o3 * (phi * 0.5 - Atan(bpr * tphihalf * obmr)) &
                     - (2 * br * o9) * sphi * z
-                d_phi = o3 * o3 * r * (3 * (r - b * cphi) * ox &
-                    - 2 * b * cphi * z + 2 * b2 * r * sphi * sphi * oz)
                 d_r = o9 * b * (-3.d0 * ox + 2 * (r2 - br * cphi) * oz - 2 * z) * sphi
                 d_b = o9 * r * (3.d0 * ox + 2 * (b2 - br * cphi) * oz - 2 * z) * sphi
-                
-                Fl_phi = cphihalf * (-(n * (alpha + 4 * beta)) &
-                       + 4 * m * (alpha + 2 * (beta + gamma)) &
-                       + 4 * (m * alpha + n * beta) * cphi + n * alpha * Cos(2 * phi)) &
-                       / (4 *  Sqrt((1.d0 + cphi) * (-1.d0 + 2 * m + cphi)) * (2 * m - n + n * cphi))
+
+                Fl_phi = o3 * (1.d0 - z ** 3.d0) * (r2 - br * cphi) * ox
                     
                 pr = b * sphi * (3.d0 - 4 * b2 + b2 * b2 - r2 * (4.d0 + r2) + 2 * br * (4.d0 - b2 + r2) * cphi) &
                    / (9 * y * Sqrt(2 * cphi - (b2 + r2 - 1.d0) * oy * oy) * (b2 + r2 - 2 * br * cphi))
@@ -941,7 +934,6 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
 
             end if
             F_(2) = eplusf + gamma * ellippi + d
-            Fl_phi = Fl_phi + d_phi  
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
             
@@ -976,22 +968,17 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
                 - 2 * br * o9 * sphi * y
             d_r = o9 * b * sphi * (-3.d0 * ox + 2 * (r2 - br * cphi) * oy - 2 * y)
             d_b = o9 * r * (3.d0 * ox + 2 * (b2 - br * cphi) * oy - 2 * y) * sphi
-            d_phi = o9 * r * (3 * (r - b * cphi) * ox &
-                - 2 * b * cphi * y + 2 * b2 * r * sphi * sphi * oy)
              
             o = 1.d0
             ellipe = el2((tphihalf), (sqomm), (o), (1.d0 - m))
             ellipf = el2((tphihalf), (sqomm), (o), (o))
             
             if (b .eq. r) then
-                Fl_phi = ((2.d0 + m * (cphi - 1.d0)) * alpha + 2 * beta) &
-                       / (2 * Sqrt(4.d0 + 2 * m * (cphi - 1.d0)))
+                Fl_phi = o3 * (1.d0 - y ** 3.d0) * (r2 - br * cphi) * ox
                 ellippi = 0.d0
                 gamma = 0.d0
             else
-                Fl_phi = ((2 - n + m * (cphi - 1.d0)) * alpha + (2 - n) * beta + 2 * gamma &
-                    + n * cphi * (alpha + beta) + 2 * m * n * alpha * sphihalf**4) &
-                    / (Sqrt(2 * (2.d0 - m + m * cphi)) * (2.d0 - n + n * cphi))
+                Fl_phi = o3 * (1.d0 - y ** 3.d0) * (r2 - br * cphi) * ox
                 ellippi = el3((tphihalf), (sqomm), (1.d0 - n))
             end if
                 
@@ -1000,7 +987,6 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
             eplusf_b = ub * ellipe + vb * ellipf 
             
             F_(2) = eplusf + gamma * ellippi + d
-            Fl_phi = Fl_phi + d_phi
             Fl_r = eplusf_r + pr + d_r
             Fl_b = eplusf_b + pb + d_b
         end if
