@@ -2,8 +2,8 @@ module kepler
 use iso_c_binding
 implicit none
 
-real*8, parameter :: pi = 3.14159265358979323846, G = 8.8876413d-10
-real*8, parameter :: o3 = 0.33333333333333333333
+real*8, parameter :: pi = 4.d0 * Atan(1.d0), G = 8.8876413d-10
+real*8, parameter :: o3 = 1.d0 / 3.d0
 real*8, parameter :: days_in_year = 365.256, earths_in_sun = 332946.08
 
 contains
@@ -23,7 +23,7 @@ subroutine solve_kepler(t, n, t0, ecc, a, r, cosf, sinf, j)
         sinf = Sin(M)
         r = a
     else
-        tol = 1.d-7
+        tol = 1.d-15
         
         E = M + ecc
         x = Sqrt((1.d0 + ecc) / (1.d0 - ecc))
@@ -62,8 +62,8 @@ subroutine solve_kepler_markley(t, n, t0, ecc, a, rr, sinf, cosf, j)
         rr = a
     else
         ome = 1.d0 - ecc
-        fact1 = 3 * pi / (pi - 6 / pi)
-        fact2 = 1.6 / (pi - 6 / pi)
+        fact1 = 3 * pi / (pi - 6.d0 / pi)
+        fact2 = 1.6 / (pi - 6.d0 / pi)
         x = Sqrt((1.d0 + ecc) / (1.d0 - ecc))
         
         M2 = M * M
@@ -304,14 +304,14 @@ subroutine get_impacts(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
     real (c_double), bind(C), intent(out), dimension(j) :: bp2, bm2, bpm2
     real*8 :: np, nm, ap, am
     real (c_double), bind(C), intent(out), dimension(j) :: xbc, ybc, x, y
-    real*8, dimension(j) :: cosfbc, sinfbc, rbc, cosfwbc, sinfwbc
-    real*8, dimension(j) :: cosfm, sinfm, rm, cosfwm, sinfwm
+    real*8, dimension(j) :: cosfw, sinfw
+    real*8, dimension(j) :: cosf, sinf, r
     real*8 :: mrp, mrm, comegap, somegap, cwp, swp, cip, comegam, somegam, cwm, swm, cim
     
     np = 2 * pi / Pp
     nm = 2 * pi / Pm
-    ap = (G * (ms + mp + mm) / (np ** 2)) ** o3
-    am = (G * (mp + mm) / (nm ** 2)) ** o3
+    ap = (G * (ms + mp + mm) / (np ** 2.d0)) ** o3
+    am = (G * (mp + mm) / (nm ** 2.d0)) ** o3
     
     comegap = Cos(Op)
     somegap = Sin(Op)
@@ -328,12 +328,67 @@ subroutine get_impacts(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
     mrp = -mm / (mp + mm)
     mrm = mp / (mp + mm)
     
-    call solve_kepler(t, np, t0p, ep, ap, rbc, cosfbc, sinfbc, j)
+    call solve_kepler(t, np, t0p, ep, ap, r, cosf, sinf, j)
     
-    cosfwbc = cwp * cosfbc - swp * sinfbc
+    cosfw = cwp * cosf - swp * sinf
+    sinfw = swp * cosf + sinf * cwp
+    xbc = -r * (comegap * cosfw - somegap * sinfw * cip)
+    ybc = -r * (somegap * cosfw + comegap * sinfw * cip)
+    
+    call solve_kepler(t, nm, t0m, em, am, r, cosf, sinf, j)
+    
+    cosfw = cwm * cosf - swm * sinf
+    sinfw = swm * cosf + sinf * cwm
+    x = -r * (comegam * cosfw - somegam * sinfw * cim)
+    y = -r * (somegam * cosfw + comegam * sinfw * cim)
+    
+    bm2 = (xbc + mrm * x)**2.d0 + (ybc + mrm * y)**2.d0
+    bp2 = (xbc + mrp * x)**2.d0 + (ybc + mrp * y)**2.d0
+    bpm2 = x**2.d0 + y**2.d0
+    
+end
+
+subroutine bp_bpm_theta(t, ms, t0p, ep, Pp, wp, ip, mp, &
+    & t0m, em, Pm, wm, Om, im, mm, j, bp, bpm, theta) bind(C, name="bp_bpm_theta")
+
+    integer (c_int), bind(C) :: j
+    real (c_double), bind(C) :: ms, t0p, ep, Pp, wp, ip, mp 
+    real (c_double), bind(C) :: t0m, em, Pm, Om, wm, im, mm
+    real (c_double), bind(C) :: t(j)
+    !real (c_double), bind(C), intent(out), dimension(j) :: bp2, bm2, bpm2
+    real (c_double), bind(C), intent(out), dimension(j) :: bp, bpm, theta
+    real*8 :: np, nm, ap, am
+    !real (c_double), bind(C), intent(out), dimension(j) :: xbc, ybc, x, y
+    real*8, dimension(j) :: cosfbc, sinfbc, rbc, cosfwbc, sinfwbc
+    real*8, dimension(j) :: cosfm, sinfm, rm, cosfwm, sinfwm
+    real*8 :: mrp, mrm, comegap, somegap, cwp, swp, cip, comegam, somegam, cwm, swm, cim
+    
+    real*8 :: sip
+    real*8, dimension(j) :: bpm2, rb2, x, y
+    
+    np = 2 * pi / Pp
+    nm = 2 * pi / Pm
+    ap = (G * (ms + mp + mm) / (np ** 2)) ** o3
+    am = (G * (mp + mm) / (nm ** 2)) ** o3
+    
+    cwp = Cos(wp)
+    swp = Sin(wp)
+    sip = Sin(ip)
+    
+    comegam = Cos(Om)
+    somegam = Sin(Om)
+    cwm = Cos(wm)
+    swm = Sin(wm)
+    cim = Cos(im)
+    
+    mrp = -mm / (mp + mm)
+    mrm = mp / (mp + mm)
+    
+    call solve_kepler(t, np, t0p, ep, ap, rbc, cosfbc, sinfbc, j)
+
     sinfwbc = swp * cosfbc + sinfbc * cwp
-    xbc = -rbc * (comegap * cosfwbc - somegap * sinfwbc * cip)
-    ybc = -rbc * (somegap * cosfwbc + comegap * sinfwbc * cip)
+    rb2 = (ap * (1.d0 - ep * ep) / (1.d0 + ep * cosfbc)) ** 2.d0 &
+        * (1.d0 - sinfwbc * sinfwbc * sip * sip)
     
     call solve_kepler(t, nm, t0m, em, am, rm, cosfm, sinfm, j)
     
@@ -342,10 +397,11 @@ subroutine get_impacts(t, ms, t0p, ep, Pp, Op, wp, ip, mp, &
     x = -rm * (comegam * cosfwm - somegam * sinfwm * cim)
     y = -rm * (somegam * cosfwm + comegam * sinfwm * cim)
     
-    bm2 = (xbc + mrm * x)**2 + (ybc + mrm * y)**2
-    bp2 = (xbc + mrp * x)**2 + (ybc + mrp * y)**2
-    bpm2 = x**2 + y**2
-    
+    bpm2 = x * x + y * y
+    bpm = Sqrt(bpm2)
+    theta = Atan(y/x)
+    bp = Sqrt(rb2 + mrp * mrp * bpm2 * Sin(theta) ** 2.d0) &
+       - mrp * bpm * Cos(theta)
 end
 
 end
