@@ -14,7 +14,7 @@ real*8 function el1(x, kc)
     real*8 :: g, m, y
     real*8 :: D = 12
     real*8 :: ca, cb
-    real*8 :: pi = 3.1415926535897932384626433832795
+    real*8 :: pi = 4.d0 * Atan(1.d0)
     integer :: l, i
     
     ca = 10**(-D/2.d0)
@@ -66,7 +66,7 @@ real*8 function el2(x, kc, a, b)
     real*8 :: c, dd, f, g, ik, m, p, y, z
     real*8 :: D = 12
     real*8 :: ca, cb
-    real*8 :: pi = 3.1415926535897932384626433832795
+    real*8 :: pi = 4.d0 * Atan(1.d0)
     integer :: l, i
     
     ca = 10**(-D/2.d0)
@@ -137,7 +137,7 @@ real*8 function el3(x, kc, p)
     real*8 :: h, hh, p1, pm, pz, q, r, s 
     real*8 :: t, u, v, w, y, ye, z, zd
     real*8 :: ca, cb
-    real*8 :: pi = 3.1415926535897932384626433832795
+    real*8 :: pi = 4.d0 * Atan(1.d0)
     real*8 :: ln2 = 0.6931471805599453
     integer :: l, m, n, ND, i, k
     logical :: bo, bk

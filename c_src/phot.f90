@@ -44,12 +44,12 @@ subroutine phis(rp, rm, bp, bm, bpm, cth, sth, pp1, pp2, pm1, pm2, pp_rp, pp_rm,
     a = rp
     b = rm
     c = bpm
-    if (c .ge. b) then
+    if (c .gt. b) then
         tmp = c
         c = b
         b = tmp
     end if
-    if (b .ge. a) then
+    if (b .gt. a) then
         tmp = b
         b = a
         a = tmp
@@ -102,18 +102,18 @@ subroutine kappas_p(rp, bp, kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
     real*8 :: delta
     real*8 :: denom
     
-    if (bp .ge. 1.d0) then
+    if (bp .gt. 1.d0) then
         a = bp
         b = 1.d0
         c = rp
-        if (rp .ge. bp) then
-            b = rp
-            c = bp
-        end if
     else
         a = 1.d0
         b = bp
         c = rp
+        if (rp .gt. bp) then
+            b = rp
+            c = bp
+        end if
     end if
     delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     denom = 1.d0 / (delta * bp * rp)
@@ -156,14 +156,14 @@ subroutine kappas_m(rm, bp, bm, bpm, cth, sth, km, kms, km_rm, km_bp, km_bpm, km
         a = bm
         b = 1.d0
         c = rm
-        if (rm .ge. bm) then
-            b = rm
-            c = bm
-        end if
     else
         a = 1.d0
         b = bm
         c = rm
+        if (rm .ge. bm) then
+            b = rm
+            c = bm
+        end if
     end if
     delta = Sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     denom = 1.d0 / (delta * bm * bm)
@@ -322,6 +322,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                                 ! moon and planet both overlap star, moon fully overlapped by planet
                                 lc(:, i) = (f0 - 2 * Fcomplete(ld, rp, bp(i), dbm0, .TRUE.)) * of0
                             else
+                                ! Case E
                                 ! moon and planet both overlap star, moon and planet partially overlap each other 
                                 call bm_x(bp(i), bm(i), bpm(i), cth(i), sth(i), dbm)
                                 call phis(rp, rm, bp(i), bm(i), bpm(i), cth(i), sth(i), pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
@@ -487,7 +488,7 @@ subroutine flux(c1, c2, rp, rm, bp, bpm, cth, sth, lc, j) bind(C, name="flux")
                                                         - F(ld, kp, rp, bp(i), kp_rp, 0.d0, kp_bp, 0.d0, 0.d0, &
                                                             dbm0, .TRUE., .TRUE.) &
                                                         - F(ld, km, rm, bm(i), 0.d0, km_rm, km_bp, km_bpm, km_theta, &
-                                                            dbm0, .FALSE., .TRUE.)) * of0
+                                                            dbm, .FALSE., .TRUE.)) * of0
                                     else if ((d1 .le. 1.d0) .AND. (d2 .le. 1.d0)) then
                                         ! planet and moon both partially overlap star and each other, 
                                         ! with the planet/moon overlap fully overlapping the star
@@ -639,8 +640,10 @@ function Fstar(ld, phi, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta)
     F_bpm(2) = Fl_phi * phi_bpm
     F_theta(2) = Fl_phi * phi_theta
 
-    F_(3) = 0.25 * (phi - o3 * Sin(phi) * Cos(3 * phi))
-    Fq_phi = 0.5 * o3 * Cos(phi)**2.d0 * (5.d0 - 4 * Cos(2 * phi))
+    !F_(3) = 0.25 * (phi - o3 * Sin(phi) * Cos(3 * phi))
+    F_(3) = 0.25d0 * phi
+    !Fq_phi = 0.5 * o3 * Cos(phi)**2.d0 * (5.d0 - 4 * Cos(2 * phi))
+    Fq_phi = 0.25d0
     F_rp(3) = Fq_phi * phi_rp
     F_rm(3) = Fq_phi * phi_rm
     F_bp(3) = Fq_phi * phi_bp
@@ -843,19 +846,25 @@ function F(ld, phi, r, b, phi_rp, phi_rm, phi_bp, phi_bpm, phi_theta, dbm, pflag
     F_bpm(1) = Fc_phi * phi_bpm
     F_theta(1) = Fc_phi * phi_theta
     
-    F_(3) = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi &
-       - 4 * r * (3 * (2 * b2 + r2) * phi &
-       + br * Sin(3 * phi)) + r2 * r * Sin(4 * phi)))
+    !F_(3) = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi &
+    !   - 4 * r * (3 * (2 * b2 + r2) * phi &
+    !   + br * Sin(3 * phi)) + r2 * r * Sin(4 * phi))) 
+    F_(3) = 0.25 * (r * (r * (2 * b2 + r2) * phi &
+          + b * (-b2 - 3 * r2 + br * cphi) * sphi))
+    
+    !Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi &
+    !    - 3 * r * (2 * b2 + r2 + br * Cos(3 * phi)) + r2 * r * Cos(4 * phi)))
+    Fq_phi = 0.25 * (r * (2 * b2 * r + r2 * r + b * (-((b2 + 3 * r2) * cphi) &
+           + br * Cos(2 * phi))))
 
-    Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi &
-        - 3 * r * (2 * b2 + r2 + br * Cos(3 * phi)) + r2 * r * Cos(4 * phi)))
+    !Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi) &
+    !     + r * (12 * (b2 + r2) * phi + 3 * br * Sin(3 * phi) &
+    !     - r2 * Sin(4 * phi))) * 0.25 * o3
+    Fq_r = r * (b2 + r2) * phi - 0.25 * (b * (b2 + 9 * r2 - 2 * br * cphi) * sphi)
 
-    Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi) &
-         + r * (12 * (b2 + r2) * phi + 3 * br * Sin(3 * phi) &
-         - r2 * Sin(4 * phi))) * 0.25 * o3
-
-    Fq_b = b * (r2 * phi - br * sphi * 0.5) &
-        + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
+    !Fq_b = b * (r2 * phi - br * sphi * 0.5) &
+    !    + r2 * 0.25 * r * (Sin(3 * phi) * o3 - 3 * sphi)
+    Fq_b = 0.25 * (r * (-3 * (b2 + r2) * sphi + br * (4 * phi + Sin(2 * phi))))
                 
     F_rp(3) = Fq_phi * phi_rp
     F_rm(3) = Fq_phi * phi_rm
