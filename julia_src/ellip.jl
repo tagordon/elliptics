@@ -1,4 +1,4 @@
-#module ellip
+ #module elli2
 #implicit none
 
 #!real*8 :: el1, el2, el3
@@ -58,7 +58,7 @@ function el1(x::T, kc::T) where {T <: Real}
     
 @label two
    el1 = ee
-return
+return el1
 end
 
 function el2(x::T, kc::T, a::T, b::T) where {T <: Real}
@@ -131,7 +131,7 @@ function el2(x::T, kc::T, a::T, b::T) where {T <: Real}
     
 @label two
     el2 = ee
-return
+return el2
 end
 
 function el3(x::T, kc::T, p::T) where {T <: Real}
@@ -239,7 +239,7 @@ function el3(x::T, kc::T, p::T) where {T <: Real}
             r = r / z
             z = r
             w = pz
-        end if
+        end
         u = u / w
         v = v / w
     else
@@ -292,7 +292,7 @@ function el3(x::T, kc::T, p::T) where {T <: Real}
         if (z < 0.0)
             m += k
         end
-        k = int(sign(1.0, r))  # Check syntax
+        k = convert(Int64,sign(r))  # Check syntax
         h = ee / (u * u + v * v)
         u = u * (1.0 + h)
         v = v * (1.0 - h)
@@ -307,8 +307,8 @@ function el3(x::T, kc::T, p::T) where {T <: Real}
             de = de * (u - hh)
             bk = abs(ye) < 1.0
         else
-            k = exponent(z)  # Check syntax
-            z = fraction(z)  # Check syntax
+            k = exponent(z)+1  # Check syntax
+            z = fraction(z)/2  # Check syntax
             m = m + k
         end
     end
@@ -351,7 +351,7 @@ function el3(x::T, kc::T, p::T) where {T <: Real}
             z = cb
         end
         if (z < 0.0)
-            m = m + int(sign(1.0, h))  # Check syntax
+            m = m + convert(Int64,sign(h))  # Check syntax
         end
         s = atan(h,z) + m * pi
     else
@@ -401,59 +401,60 @@ function el3(x::T, kc::T, p::T) where {T <: Real}
     
 @label four
     el3 = ee
-return
+return el3
 end
 
 # This routine can be found in the Limbdark.jl repository
 # as cel_bulirsch
-#real*8 function cel(kc, p, a, b)
+function cel(kc::T, p::T, a::T, b::T) where {T <: Real}
 #
 #    real*8 :: kc, p, a, b
 #    real*8 :: CA, e, f, g, m, q
 #    
-#    CA = 1E-6
-#    
-#    kc = abs(kc)
-#    e = kc
-#    m = 1.d0
-#    
-#    if (kc .eq. 0.d0)then
-#        cel = 0.d0 
-#        return
-#    end if 
-#    
-#    if (p .gt. 0.d0) then
-#        p = sqrt(p)
-#        b = b / p
-#    else
-#        f = kc * kc
-#        q = 1.d0 - f
-#        g = 1.d0 - p
-#        f = f - p
-#        q = (b - a * p) * q
-#        p = sqrt(f / g)
-#        a = (a - b) / g
-#        b = -q / (g * g * p) + a * p
-#    end if 
-#
-#1   f = a
-#    a = b / p + a
-#    g = e / p
-#    b = f * g + b
-#    b = b + b
-#    p = g + p
-#    g = m
-#    m = kc + m
-#    
-#    if (abs(g - kc) .gt. g * CA) then
-#        kc = sqrt(e)
-#        kc = kc + kc
-#        e = kc * m
-#        goto 1
-#    end if
-#    cel = 1.57079632679489 * ((a * m + b) / (m * (m + p)))
-#
-#return
-#end
+  CA = 1e-6
+    
+  kc = abs(kc)
+  ee = kc
+  m = 1.0
+    
+  if kc == 0.0
+    cel = 0.0 
+    return cel
+  end
+    
+  if p > 0.0
+    p = sqrt(p)
+    b = b / p
+  else
+    f = kc * kc
+    q = 1.0 - f
+    g = 1.0 - p
+    f = f - p
+    q = (b - a * p) * q
+    p = sqrt(f / g)
+    a = (a - b) / g
+    b = -q / (g * g * p) + a * p
+  end
 
-end module ellip
+@label one
+  f = a
+  a = b / p + a
+  g = ee / p
+  b = f * g + b
+  b = b + b
+  p = g + p
+  g = m
+  m = kc + m
+    
+  if abs(g - kc) > (g * CA)
+    kc = sqrt(ee)
+    kc = kc + kc
+    ee = kc * m
+    @goto one
+  end
+  cel = 0.5*pi* ((a * m + b) / (m * (m + p)))
+
+return cel
+end
+
+#end module ellip

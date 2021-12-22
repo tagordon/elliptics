@@ -183,7 +183,7 @@ function kappas_m(rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Real}
     return km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta
 end
 
-function bm_x!(bp::T, bm::T, bpm::T, cth::T, sth::T, dbm::Array{1,T}) where {T <: Real}
+function bm_x!(bp::T, bm::T, bpm::T, cth::T, sth::T, dbm::Array{T,1}) where {T <: Real}
 
     #real*8 :: bp, bm, bpm, cth, sth
     #real*8, dimension(3) :: dbm
@@ -199,8 +199,8 @@ end
 
 # main loop to compute the flux at each timestep by finding the correct geometry and
 # calling the integration routines 
-function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth::Array{1,T}, 
-   sth::Array{1,T}, lc::Array{2,T}, j::Int64) where {T <: Real}
+function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth::Array{T,1}, 
+   sth::Array{T,1}, lc::Array{T,2}, j::Int64) where {T <: Real}
 
     #integer (c_int), bind(C) :: j
     #integer :: i
@@ -244,11 +244,11 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
     #real*8, dimension(j) :: bm
     bm = zeros(T,j)
     #real*8, dimension(3) :: dbm, dbm0
-    dbm = zeros(T,j); dbm0=zeros(T,j)
+    dbm = zeros(T,3); dbm0=zeros(T,3)
     #real*8 :: obm
     
     bm .= sqrt.((bp - bpm).^2 .+ 2 .* bp .* bpm .* (1.0 .- cth))
-    dbm0 = 0.0
+    #dbm0 = 0.0
     
     ld[1] = 1.0 - c1 - 2 * c2
     ld[2] = c1 + 2 * c2
@@ -268,7 +268,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
     
     for i=1:1:j
     
-        lc[:, i] = f0 * of0
+        lc[:, i] .= f0 * of0
     
         if bpm[i] > rp + rm
             # moon and planet don't overlap each other 
@@ -381,7 +381,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
                                 # planet partially overlaps star, moon fully overlaps star but is completely overlapped by planet 
                                 #call kappas_p(rp, bp[i], kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
                                 kp,kp_bp,kp_rp,kps,kps_bp,kps_rp = kappas_p(rp, bp[i])
-                                lc[:, i] = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
+                                lc[:, i] .= 2 * (Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
                                                 .- F(ld, kp, rp, bp[i], kp_rp, 0.0, kp_bp, 0.0, 0.0,
                                                     dbm0, true, true)) * of0
                             else
@@ -454,7 +454,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
                                         if pp2 > kp
                                             # planet and moon both partially overlap the star and each other but the 
                                             # moon-star overlap is contained within the planet-star overlap
-                                            lc[:, i] = 2 * (Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
+                                            lc[:, i] .= 2 * (Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
                                                             .- F(ld, kp, rp, bp[i], kp_rp, 0.0, kp_bp, 0.0, 0.0,
                                                                 dbm0, true, true)) * of0
                                         else
@@ -462,7 +462,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
                                             # moon-star intersections are overlapped by the planet
                                             #call bm_x(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
                                             bm_x!(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
-                                            lc[:, i] = (2 * Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
+                                            lc[:, i] .= (2 * Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
                                                         .- Arc(ld, -kp, pp2, rp, bp[i],
                                                               -kp_rp, 0.0, -kp_bp, 0.0, 0.0,
                                                               -pp_rp, -pp_rm, 0.0, -pp_bpm, 1.0,
@@ -574,9 +574,9 @@ end
 
 # work out the right sign and order of the integration and call the integration routine 
 # to integrate along an arbitrary arc of the planet or moon 
-function Arc(ld::Array{1,T}, phi1::T, phi2::T, r::T, b::T, phi1_rp::T, 
+function Arc(ld::Array{T,1}, phi1::T, phi2::T, r::T, b::T, phi1_rp::T, 
                 phi1_rm::T, phi1_bp::T, phi1_bpm::T, phi1_theta::T, phi2_rp::T, phi2_rm::T, 
-                phi2_bp::T, phi2_bpm::T, phi2_theta::T, dbm::Array{1,T}, 
+                phi2_bp::T, phi2_bpm::T, phi2_theta::T, dbm::Array{T,1}, 
                 pflag::Bool, limbflag1::Bool, limbflag2::Bool)  where {T <: Real}
                     
     #real*8, dimension(8) :: Arc
@@ -643,7 +643,7 @@ function Arc(ld::Array{1,T}, phi1::T, phi2::T, r::T, b::T, phi1_rp::T,
 end
 
 # integrate along the limb of the star
-function Fstar(ld::Array{1,T}, phi::T, phi_rp::T, phi_rm::T, phi_bp::T, phi_bpm::T, phi_theta::T) where {T <: Real}
+function Fstar(ld::Array{T,1}, phi::T, phi_rp::T, phi_rm::T, phi_bp::T, phi_bpm::T, phi_theta::T) where {T <: Real}
 
     #real*8, dimension(8) :: Fstar
     Fstar = zeros(T,8)
@@ -694,7 +694,7 @@ function Fstar(ld::Array{1,T}, phi::T, phi_rp::T, phi_rm::T, phi_bp::T, phi_bpm:
 end
 
 # integrate around the entire planet/moon 
-function Fcomplete(ld::Array{1,T}, r::T, b::T, dbm::Array{1,T}, pflag::Bool) where {T <: Real}
+function Fcomplete(ld::Array{T,1}, r::T, b::T, dbm::Array{T,1}, pflag::Bool) where {T <: Real}
 
     #real*8, dimension(8) :: Fcomplete
     Fcomplete = zeros(T,8)
@@ -812,8 +812,8 @@ function Fcomplete(ld::Array{1,T}, r::T, b::T, dbm::Array{1,T}, pflag::Bool) whe
 end
 
 # evaluate the integral at one arbitrary limit along the planet or moon's boundary 
-function F(ld::Array{1,T}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T, 
-     phi_bp::T, phi_bpm::T, phi_theta::T, dbm::Array{1,T}, pflag::Bool, limbflag::Bool) where {T <: Real}
+function F(ld::Array{T,1}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T, 
+     phi_bp::T, phi_bpm::T, phi_theta::T, dbm::Array{T,1}, pflag::Bool, limbflag::Bool) where {T <: Real}
 
     #real*8, dimension(8) :: F
     F = zeros(T,8)
@@ -889,7 +889,7 @@ function F(ld::Array{1,T}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
     #Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi
     #    - 3 * r * (2 * b2 + r2 + br * cos(3 * phi)) + r2 * r * cos(4 * phi)))
     Fq_phi = 0.25 * (r * (2 * b2 * r + r2 * r + b * (-((b2 + 3 * r2) * cphi)
-            + br * Cos(2 * phi))))
+            + br * cos(2 * phi))))
     #Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi)
     #     + r * (12 * (b2 + r2) * phi + 3 * br * sin(3 * phi)
     #     - r2 * sin(4 * phi))) * 0.25 * o3
@@ -897,7 +897,7 @@ function F(ld::Array{1,T}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
 
     #Fq_b = (b * (r2 * phi - br * sphi * 0.5)
     #    + r2 * 0.25 * r * (sin(3 * phi) * o3 - 3 * sphi))
-    Fq_b = 0.25 * (r * (-3 * (b2 + r2) * sphi + br * (4 * phi + Sin(2 * phi))))
+    Fq_b = 0.25 * (r * (-3 * (b2 + r2) * sphi + br * (4 * phi + sin(2 * phi))))
             
     F_rp[3] = Fq_phi * phi_rp
     F_rm[3] = Fq_phi * phi_rm
@@ -942,8 +942,8 @@ function F(ld::Array{1,T}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
                 
                 o = 1.0
                 ellippi = cel((sqomm), 1.0 - n, (o), (o))
-                ellipe = cel((sqomm), (o), (o), (1.0 - m))
-                ellipf = cel((sqomm), (o), (o), (o))
+                ellipe  = cel((sqomm), (o), (o), (1.0 - m))
+                ellipf  = cel((sqomm), (o), (o), (o))
                 
                 eplusf = alpha * ellipe + beta * ellipf
                 eplusf_r = ur * ellipe + vr * ellipf
