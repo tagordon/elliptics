@@ -40,12 +40,12 @@ function phis(rp::T, rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Re
     a = rp
     b = rm
     c = bpm
-    if c >= b
+    if c > b
         tmp = c
         c = b
         b = tmp
     end
-    if b >= a
+    if b > a
         tmp = b
         b = a
         a = tmp
@@ -99,18 +99,18 @@ function kappas_p(rp::T, bp::T)  where {T <: Real}
     #real*8 :: delta
     #real*8 :: denom
     
-    if bp >= 1.0
+    if bp > 1.0
         a = bp
         b = 1.0
         c = rp
-        if rp >= bp
-            b = rp
-            c = bp
-        end
     else
         a = 1.0
         b = bp
         c = rp
+        if rp > bp
+            b = rp
+            c = bp
+        end
     end
     delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     denom = 1.0 / (delta * bp * rp)
@@ -154,14 +154,14 @@ function kappas_m(rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Real}
         a = bm
         b = 1.0
         c = rm
-        if rm > bm
-            b = rm
-            c = bm
-        end
     else
         a = 1.0
         b = bm
         c = rm
+        if rm >= bm
+            b = rm
+            c = bm
+        end
     end
     delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
     denom = 1.0 / (delta * bm * bm)
@@ -332,6 +332,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
                                 # moon and planet both overlap star, moon fully overlapped by planet
                                 lc[:, i] .= (f0 - 2 * Fcomplete(ld, rp, bp[i], dbm0, true)) * of0
                             else
+                                # Case E
                                 # moon and planet both overlap star, moon and planet partially overlap each other 
                                 #call bm_x(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
                                 bm_x!(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
@@ -515,7 +516,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{1,T}, bpm::Array{1,T}, cth:
                                                         .- F(ld, kp, rp, bp[i], kp_rp, 0.0, kp_bp, 0.0, 0.0,
                                                             dbm0, true, true)
                                                         .- F(ld, km, rm, bm[i], 0.0, km_rm, km_bp, km_bpm, km_theta,
-                                                            dbm0, false, true)) * of0
+                                                            dbm, false, true)) * of0
                                     elseif ((d1 <= 1.0) && (d2 <= 1.0))
                                         # planet and moon both partially overlap star and each other, 
                                         # with the planet/moon overlap fully overlapping the star
@@ -671,8 +672,10 @@ function Fstar(ld::Array{1,T}, phi::T, phi_rp::T, phi_rm::T, phi_bp::T, phi_bpm:
     F_bpm[2] = Fl_phi * phi_bpm
     F_theta[2] = Fl_phi * phi_theta
 
-    F_[3] = 0.25 * (phi - o3 * sin(phi) * cos(3 * phi))
-    Fq_phi = 0.5 * o3 * cos(phi)^2 * (5.0 - 4 * cos(2 * phi))
+    #F_[3] = 0.25 * (phi - o3 * sin(phi) * cos(3 * phi))
+    #Fq_phi = 0.5 * o3 * cos(phi)^2 * (5.0 - 4 * cos(2 * phi))
+    F_[3] = 0.25 * phi
+    Fq_phi = 0.25
     F_rp[3] = Fq_phi * phi_rp
     F_rm[3] = Fq_phi * phi_rm
     F_bp[3] = Fq_phi * phi_bp
@@ -878,20 +881,24 @@ function F(ld::Array{1,T}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
     F_bpm[1] = Fc_phi * phi_bpm
     F_theta[1] = Fc_phi * phi_theta
     
-    F_[3] = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi 
-       - 4 * r * (3 * (2 * b2 + r2) * phi 
-       + br * sin(3 * phi)) + r2 * r * sin(4 * phi)))
+    #F_[3] = -0.25 * 0.25 * o3 * (r * (4 * b * (2 * b2 + 9 * r2) * sphi 
+    #   - 4 * r * (3 * (2 * b2 + r2) * phi 
+    #   + br * sin(3 * phi)) + r2 * r * sin(4 * phi)))
+    F_[3] = 0.25 * (r * (r * (2 * b2 + r2) * phi 
+           + b * (-b2 - 3 * r2 + br * cphi) * sphi))
+    #Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi
+    #    - 3 * r * (2 * b2 + r2 + br * cos(3 * phi)) + r2 * r * cos(4 * phi)))
+    Fq_phi = 0.25 * (r * (2 * b2 * r + r2 * r + b * (-((b2 + 3 * r2) * cphi)
+            + br * Cos(2 * phi))))
+    #Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi)
+    #     + r * (12 * (b2 + r2) * phi + 3 * br * sin(3 * phi)
+    #     - r2 * sin(4 * phi))) * 0.25 * o3
+    Fq_r = r * (b2 + r2) * phi - 0.25 * (b * (b2 + 9 * r2 - 2 * br * cphi) * sphi)
 
-    Fq_phi = - o3 * 0.25 * (r * (b * (2 * b2 + 9 * r2) * cphi
-        - 3 * r * (2 * b2 + r2 + br * cos(3 * phi)) + r2 * r * cos(4 * phi)))
-
-    Fq_r = ( - (b * (2 * b2 + 27 * r2) * sphi)
-         + r * (12 * (b2 + r2) * phi + 3 * br * sin(3 * phi)
-         - r2 * sin(4 * phi))) * 0.25 * o3
-
-    Fq_b = (b * (r2 * phi - br * sphi * 0.5)
-        + r2 * 0.25 * r * (sin(3 * phi) * o3 - 3 * sphi))
-                
+    #Fq_b = (b * (r2 * phi - br * sphi * 0.5)
+    #    + r2 * 0.25 * r * (sin(3 * phi) * o3 - 3 * sphi))
+    Fq_b = 0.25 * (r * (-3 * (b2 + r2) * sphi + br * (4 * phi + Sin(2 * phi))))
+            
     F_rp[3] = Fq_phi * phi_rp
     F_rm[3] = Fq_phi * phi_rm
     F_bp[3] = Fq_phi * phi_bp
