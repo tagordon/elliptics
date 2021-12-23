@@ -1,56 +1,38 @@
+
 include("ellip.jl")
 
 
-pihalf = 0.5 * pi; twopi = 2*pi
-twopithree = twopi / 3.0
-o3 = 1.0 / 3.0; o9 = 1.0 / 9.0
-pithird = pi / 3.0; pisixth = pithird/2
 
+o3 = 1//3; o9 = 1//9
+
+function triangle(a::T,b::T,c::T) where {T <: Real}
+  # find 4 * area of triangle using modified Heron's formula 
+  a,b,c = sort([a,b,c])
+  return sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+end
 
 function phis(rp::T, rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Real}
-   #            pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta)
 
-    #real*8 :: rp, rm, bp, bm, bpm, cth, sth
     
     # intersection angle from planet center, intersection from moon center, same 
-    # values relative to bp and bm vectors respectively
-    #real*8 :: pp, pm, pp1, pm1, pp2, pm2
+    # values relative to bp and bm vectors respectively: pp, pm, pp1, pm1, pp2, pm2
     
-    # derivatives 
-    #real*8 :: pp_rp, pp_rm, pp_bpm 
-    #real*8 :: pm_rp, pm_rm, pm_bpm, thetam_theta, thetam_bp, thetam_bpm
+    # derivatives: pp_rp, pp_rm, pp_bpm, pm_rp, pm_rm, pm_bpm, thetam_theta, thetam_bp, thetam_bpm
     
-    # Four times the area of the triangle formed by rm, rp, and bpm
-    #real*8 :: delta
-    # Variables used in sorting the sides of the triangle
-    #real*8 :: a, b, c, tmp
+    # Four times the area of the triangle formed by rm, rp, and bpm: delta
+    # Variables used in sorting the sides of the triangle: a, b, c, tmp
     
-    # angle between bpm vector and bp vector, 
-    # angle between bpm vector and bm vector
-    #real*8 :: theta, thetam
+    # angle between bpm vector and bp vector,
+    # angle between bpm vector and bm vector: theta, thetam
     
-    # for avoiding divisions
-    #real*8 :: denom, obm
+    # for avoiding divisions: denom, obm
     
     thetam = atan(bp * sth, bpm - bp * cth)
     theta = atan(sth, cth)
     obm = 1.0 / bm
     
     # find 4 * area of triangle using modified Heron's formula 
-    a = rp
-    b = rm
-    c = bpm
-    if c > b
-        tmp = c
-        c = b
-        b = tmp
-    end
-    if b > a
-        tmp = b
-        b = a
-        a = tmp
-    end
-    delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    delta = triangle(rp,rm,bpm)
     denom = 1.0 / (delta * bpm * rm * rp)
     
     pm = atan(delta, (rm - rp) * (rm + rp) + bpm * bpm)   
@@ -73,46 +55,26 @@ function phis(rp::T, rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Re
     pp2 = theta - pp
     
     if pm1 > pi
-        pm1 = pm1 - twopi
+        pm1 = pm1 - 2pi
     end
     if pp1 > pi
-        pp1 = pp1 - twopi
+        pp1 = pp1 - 2pi
     end
     #return pm_bpm,pm_rp,pm_rm,pp_bpm,pp_rp,pp_rm,thetam_bp,thetam_theta,thetam_bpm,pm1,pm2,pp1,pp2
     return pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta
 end
 
 function kappas_p(rp::T, bp::T)  where {T <: Real}
-    # , kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
 
     # kp = angle to intersection from center of planet, 
-    # kps = angle to intersection from center of star 
-    #real*8 :: rp, bp, kp, kps
+    # kps = angle to intersection from center of star: rp, bp, kp, kps
     
-    # derivatives 
-    #real*8 :: kp_rp, kp_bp, kps_rp, kps_bp
+    # derivatives: kp_rp, kp_bp, kps_rp, kps_bp
     
-    # variables used in sorting sides of triangle
-    #real*8 :: a, b, c
     
-    # four times the area of the triangle with sides rp, bp, and 1
-    #real*8 :: delta
-    #real*8 :: denom
+    # four times the area of the triangle with sides rp, bp, and 1: delta
     
-    if bp > 1.0
-        a = bp
-        b = 1.0
-        c = rp
-    else
-        a = 1.0
-        b = bp
-        c = rp
-        if rp > bp
-            b = rp
-            c = bp
-        end
-    end
-    delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    delta = triangle(bp,one(T),rp)
     denom = 1.0 / (delta * bp * rp)
     
     kps = atan(delta, (1.0 - rp) * (1.0 + rp) + bp * bp)
@@ -126,44 +88,22 @@ function kappas_p(rp::T, bp::T)  where {T <: Real}
 end
 
 function kappas_m(rm::T, bp::T, bm::T, bpm::T, cth::T, sth::T) where {T <: Real}
-    # , km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta)
 
     # km = angle to interection from center of moon, 
     # kms = angle to intersection from center of planet
-    #real*8 :: rm, bp, bm, bpm, cth, sth, km, kms
     
-    # derivatives
-    #real*8 :: km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta
-    
-    # variables used in sorting sides of triangle
-    #real*8 :: a, b, c
-    
-    # four times the area of the triangle with sides rm, bm, and 1
-    #real*8 :: delta
+    # derivatives: km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta
     
     # some useful quantities
     #real*8 :: denom, xs, xm, yp, ypm, ytheta
     
-    xs = (1.0 - bm) * (1.0 + bm) - rm * rm
-    xm = (rm - bm) * (rm + bm) - 1.0
+    xs = (1 - bm) * (1 + bm) - rm * rm
+    xm = (rm - bm) * (rm + bm) - 1
     yp = bp - bpm * cth
     ypm = bpm - bp * cth
     ytheta = bp * bpm * sth
     
-    if bm >= 1.0
-        a = bm
-        b = 1.0
-        c = rm
-    else
-        a = 1.0
-        b = bm
-        c = rm
-        if rm >= bm
-            b = rm
-            c = bm
-        end
-    end
-    delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+    delta = triangle(bm,one(T),rm)
     denom = 1.0 / (delta * bm * bm)
     
     km = atan(delta, (rm - 1.0) * (rm + 1.0) + bm * bm)
@@ -202,67 +142,47 @@ end
 function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth::Array{T,1}, 
    sth::Array{T,1}, lc::Array{T,2}, j::Int64) where {T <: Real}
 
-    #integer (c_int), bind(C) :: j
-    #integer :: i
-    #real (c_double), bind(C) :: rp, rm
-    #real (c_double), bind(C), dimension(j) :: bp, cth, sth, bpm
-    #real (c_double), bind(C), intent(out), dimension(8, j) :: lc
-    #real*8, dimension(8) :: f0
     f0 = zeros(T,8)
-    #real*8, dimension(3) :: ld
     ld = zeros(T,3)
-    #real (c_double), bind(C) :: c1, c2
-    #real*8 :: of0
     
     # half angles: from planet to planet/star intersection, moon to moon/star
     # intersection, spanned by planet on limb of star, spanned by moon on 
-    # limb of star
-    #real*8 :: kp, km, kps, kms
+    # limb of star: kp, km, kps, kms
         
-    # derivatives of above angles
-    #real*8 :: kp_rp, kp_bp, kps_rp, kps_bp
-    #real*8 :: km_rm, km_bp, km_bpm, km_theta
-    #real*8 :: kms_rm, kms_bp, kms_bpm, kms_theta
+    # derivatives of above angles: kp_rp, kp_bp, kps_rp, kps_bp,
+    # km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta
     
     # angles to planet-moon intersection from planet center 
-    #relative to bp vector (and derivatives)
-    #real*8 :: pp1, pp2
-    #real*8 :: pp_rp, pp_rm, pp_bpm 
+    #relative to bp vector (and derivatives): pp1, pp2, pp_rp, pp_rm, pp_bpm 
     
     # angles to planet-moon intersection from moon center 
-    # relative to bm vector (and derivatves)
-    #real*8 :: pm1, pm2
-    #real*8 :: pm_rp, pm_rm, thetam_bp, pm_bpm, thetam_theta
-    # derivative of angle between bpm and bm vector with respect to bpm
-    #real*8 :: thetam_bpm
+    # relative to bm vector (and derivatves): pm1, pm2, pm_rp, pm_rm, thetam_bp, 
+    # pm_bpm, thetam_theta
+    # derivative of angle between bpm and bm vector with respect to bpm: thetam_bpm
     
     # used to determine cases for three body overlaps, might not be needed. 
-    # Check if some of these (costheta, cosphi) can be removed when optimizing things later 
-    #real*8 :: phi, phi_bpm, phi_bp, phi_bm, phi_theta, d1, d2, delta, a, b, c, tmp
+    # Check if some of these (costheta, cosphi) can be removed when optimizing things later:
+    # phi, phi_bpm, phi_bp, phi_bm, phi_theta, d1, d2, delta, a, b, c, tmp
     
-    # For chain rule stuff
-    #real*8, dimension(j) :: bm
-    bm = zeros(T,j)
-    #real*8, dimension(3) :: dbm, dbm0
-    dbm = zeros(T,3); dbm0=zeros(T,3)
-    #real*8 :: obm
-    
+    # For chain rule stuff:
+    bm = zeros(T,j); dbm = zeros(T,3); dbm0=zeros(T,3)
+
+    # Compute the impact parameter of the moon with respect to stellar center:
     bm .= sqrt.((bp - bpm).^2 .+ 2 .* bp .* bpm .* (1.0 .- cth))
-    #dbm0 = 0.0
     
-    ld[1] = 1.0 - c1 - 2 * c2
+    ld[1] = 1 - c1 - 2 * c2
     ld[2] = c1 + 2 * c2
     ld[3] = c2
     
     # normalization factors 
-    f0[1] = ld[1] * pi + ld[2] * twopithree + ld[3] * pihalf
+    f0[1] = pi*(ld[1]  + ld[2] * 2//3 + ld[3]/2)
     f0[2] = 0.0
     f0[3] = 0.0
     f0[4] = 0.0
     f0[5] = 0.0
     f0[6] = 0.0
-    f0[7] = -pi + twopithree 
-    f0[8] = -2 * pi + 2 * twopithree + pihalf
+    f0[7] = -pi/3
+    f0[8] = -pi/6
     
     of0 = 1.0 / f0[1]
     
@@ -275,19 +195,19 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
             if bp[i] < 1.0 - rp
                 # planet completely inside star
                 lc[:, i] .-= 2 * Fcomplete(ld, rp, bp[i], dbm0, true) * of0
-            elseif (bp[i] < 1.0 + rp)
+            elseif bp[i] < (1 + rp)
                 # planet partially overlaps star
                 #call kappas_p(rp, bp[i], kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
                 kp,kp_bp,kp_rp,kps,kps_bp,kps_rp = kappas_p(rp, bp[i])
-                lc[:, i] .-= 2 * (Fstar(ld, kps, kps_rp, 0.0, kps_bp, 0.0, 0.0)
-                                    .+ F(ld, kp, rp, bp[i], kp_rp, 0.0, kp_bp, 0.0, 0.0,
+                lc[:, i] .-= 2 * (Fstar(ld, kps, kps_rp, zero(T), kps_bp, zero(T), zero(T))
+                                    .+ F(ld, kp, rp, bp[i], kp_rp, zero(T), kp_bp, zero(T), zero(T),
                                             dbm0, true, true)) * of0
             end
-            if bm[i] < 1.0 - rm
+            if bm[i] < (1 - rm)
                 # moon completely inside star
                 bm_x!(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
                 lc[:, i] .-= 2 * Fcomplete(ld, rm, bm[i], dbm, false) * of0
-            elseif bm[i] < 1.0 + rm
+            elseif bm[i] < (1 + rm)
                 # moon partially overlaps star
                 #call kappas_m(rm, bp[i], bm[i], bpm[i], cth[i], sth[i], km, kms,
                 #              km_rm, km_bp, km_bpm, km_theta,
@@ -295,8 +215,8 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                 km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta = kappas_m(rm, bp[i], bm[i], bpm[i], cth[i], sth[i])
                 #call bm_x(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
                 bm_x!(bp[i], bm[i], bpm[i], cth[i], sth[i], dbm)
-                lc[:, i] .-= 2 * (Fstar(ld, kms, 0.0, kms_rm, kms_bp, kms_bpm, kms_theta)
-                                    .+ F(ld, km, rm, bm[i], 0.0, km_rm, km_bp, km_bpm, km_theta,
+                lc[:, i] .-= 2 * (Fstar(ld, kms, zero(T), kms_rm, kms_bp, kms_bpm, kms_theta)
+                                    .+ F(ld, km, rm, bm[i], zero(T), km_rm, km_bp, km_bpm, km_theta,
                                             dbm, false, true)) * of0
             end
         else
@@ -313,8 +233,8 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                     #                  km_rm, km_bp, km_bpm, km_theta, &
                     #                  kms_rm, kms_bp, kms_bpm, kms_theta)
                     km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta = kappas_m(rm, bp[i], bm[i], bpm[i], cth[i], sth[i])
-                    lc[:, i] .= 2 * (Fstar(ld, pi - kms, 0.0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta)
-                                    .- F(ld, km, rm, bm[i], 0.0, km_rm, km_bp, km_bpm, km_theta,
+                    lc[:, i] .= 2 * (Fstar(ld, pi - kms, zero(T), -kms_rm, -kms_bp, -kms_bpm, -kms_theta)
+                                    .- F(ld, km, rm, bm[i], zero(T), km_rm, km_bp, km_bpm, km_theta,
                                             dbm, false, true)) * of0
                 end
             else
@@ -322,12 +242,12 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                     # planet partially overlaps star, moon is outside of star
                     #call kappas_p(rp, bp[i], kp, kps, kp_rp, kp_bp, kps_rp, kps_bp)
                     kp,kp_bp,kp_rp,kps,kps_bp,kps_rp = kappas_p(rp, bp[i])
-                    lc[:, i] .= 2 * (Fstar(ld, pi - kps, -kps_rp, 0.0, -kps_bp, 0.0, 0.0)
-                                    .- F(ld, kp, rp, bp[i], kp_rp, 0.0, kp_bp, 0.0, 0.0,
+                    lc[:, i] .= 2 * (Fstar(ld, pi - kps, -kps_rp, zero(T), -kps_bp, zero(T), zero(T))
+                                    .- F(ld, kp, rp, bp[i], kp_rp, zero(T), kp_bp, zero(T), zero(T),
                                         dbm0, true, true)) * of0
                 else
-                    if bp[i] + rp <= 1.0
-                        if bm[i] + rm <= 1.0
+                    if (bp[i] + rp) <= 1
+                        if (bm[i] + rm) <= 1
                             if bpm[i] + rm <= rp
                                 # moon and planet both overlap star, moon fully overlapped by planet
                                 lc[:, i] .= (f0 - 2 * Fcomplete(ld, rp, bp[i], dbm0, true)) * of0
@@ -341,8 +261,8 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                                 pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, pm_rp, pm_rm, pm_bpm, thetam_bp, thetam_bpm, thetam_theta =
                                    phis(rp, rm, bp[i], bm[i], bpm[i], cth[i], sth[i])
                                 lc[:, i] .= (f0 .- Arc(ld, pp1, pp2, rp, bp[i],
-                                                     pp_rp, pp_rm, 0.0, pp_bpm, 1.0,
-                                                     -pp_rp, -pp_rm, 0.0, -pp_bpm, 1.0,
+                                                     pp_rp, pp_rm, zero(T), pp_bpm, one(T),
+                                                     -pp_rp, -pp_rm, zero(T), -pp_bpm, one(T),
                                                      dbm0, true, false, false)
                                                 .- Arc(ld, pm1, pm2, rm, bm[i],
                                                      pm_rp, pm_rm, thetam_bp, pm_bpm + thetam_bpm, thetam_theta,
@@ -361,18 +281,18 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                             #          km_rm, km_bp, km_bpm, km_theta, &
                             #          kms_rm, kms_bp, kms_bpm, kms_theta)
                             km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta = kappas_m(rm, bp[i], bm[i], bpm[i], cth[i], sth[i])
-                            lc[:, i] .= (2 * Fstar(ld, pi - kms, 0.0, -kms_rm, -kms_bp, -kms_bpm, -kms_theta)
+                            lc[:, i] .= (2 * Fstar(ld, pi - kms, zero(T), -kms_rm, -kms_bp, -kms_bpm, -kms_theta)
                                         .- Arc(ld, -km, pm2, rm, bm[i], 
-                                              0.0, -km_rm, -km_bp, -km_bpm, -km_theta,
+                                              zero(T), -km_rm, -km_bp, -km_bpm, -km_theta,
                                               -pm_rp, -pm_rm, thetam_bp, -pm_bpm + thetam_bpm, thetam_theta,
                                               dbm, false, true, false)
                                         .- Arc(ld, pm1, km, rm, bm[i],
                                               pm_rp, pm_rm, thetam_bp, pm_bpm + thetam_bpm, thetam_theta,
-                                              0.0, km_rm, km_bp, km_bpm, km_theta,
+                                              zero(T), km_rm, km_bp, km_bpm, km_theta,
                                               dbm, false, false, true)
                                         .- Arc(ld, pp1, pp2, rp, bp[i],
-                                              pp_rp, pp_rm, 0.0, pp_bpm, 1.0, 
-                                              -pp_rp, -pp_rm, 0.0, -pp_bpm, 1.0, 
+                                              pp_rp, pp_rm, zero(T), pp_bpm, one(T), 
+                                              -pp_rp, -pp_rm, zero(T), -pp_bpm, one(T), 
                                               dbm0, true, false, false)) * of0
                         end
                     else
@@ -424,25 +344,7 @@ function flux!(c1::T, c2::T, rp::T, rm::T, bp::Array{T,1}, bpm::Array{T,1}, cth:
                                 #      kms_rm, kms_bp, kms_bpm, kms_theta)
                                 km, kms, km_rm, km_bp, km_bpm, km_theta, kms_rm, kms_bp, kms_bpm, kms_theta = kappas_m(rm, bp[i], bm[i], bpm[i], cth[i], sth[i])
                                 
-                                a = bm[i]
-                                b = bp[i]
-                                c = bpm[i]
-                                if b > a
-                                    tmp = b
-                                    b = a
-                                    a = tmp
-                                end
-                                if c > b
-                                    tmp = c
-                                    c = b
-                                    b = tmp
-                                end
-                                if b > a
-                                    tmp = b
-                                    b = a
-                                    a = tmp
-                                end
-                                delta = sqrt((a + (b + c)) * (c - (a - b)) * (c + (a - b)) * (a + (b - c)))
+                                delta = triangle(bm[i],bp[i],bpm[i])
                                 phi = atan(delta, (bm[i] - bpm[i]) * (bm[i] + bpm[i]) + bp[i] * bp[i])                                
                                 
                                 #call phis(rp, rm, bp[i], bm[i], bpm[i], cth[i], sth[i], pp1, pp2, pm1, pm2, pp_rp, pp_rm, pp_bpm, &
@@ -739,18 +641,18 @@ function Fcomplete(ld::Array{T,1}, r::T, b::T, dbm::Array{T,1}, pflag::Bool) whe
     bpr = b + r
     br = b * r
     
-    F_[1] = r2 * pihalf  
+    F_[1] = r2 * pi * 0.5
     F_r[1] = r * pi
     F_b[1] = 0.0
     
-    F_[3] = pihalf * r2 * (b2 + 0.5 * r2) 
+    F_[3] = pi * 0.5 * r2 * (b2 + 0.5 * r2) 
     F_r[3] = pi * r * (b2 + r2)
     F_b[3] = pi * r2 * b
     
     if ld[2] == 0.0
-        Fl = 0.0
-        Fl_r = 0.0
-        Fl_b = 0.0        
+        Fl = zero(T)
+        Fl_r = zero(T)
+        Fl_b = zero(T)
     else
         x = sqrt((1.0 - bmr) * (1.0 + bmr))
         ox = 1.0 / x
@@ -766,12 +668,12 @@ function Fcomplete(ld::Array{T,1}, r::T, b::T, dbm::Array{T,1}, pflag::Bool) whe
         vb = ((-1.0 + b2)^2 - 2 * (1.0 + b2) * r2 + r2 * r2) * o3 * ox / b
             
         sqomm = sqrt(1.0 - m)
-        o = 1.0
+        o = one(T)
             
         if b == r
-            ellippi = 0.0
-            sgn = 0.0
-            gamma = 0.0
+            ellippi = zero(T)
+            sgn = zero(T)
+            gamma = zero(T)
         else
             ellippi = cel((sqomm), (1.0 - n), (o), (o))
             sgn = sign(bmr)
@@ -790,7 +692,7 @@ function Fcomplete(ld::Array{T,1}, r::T, b::T, dbm::Array{T,1}, pflag::Bool) whe
         F_b[2] = eplusf_b
     end
 
-    Fcomplete .= 0.0
+    Fcomplete .= zero(T)
     sumF_b = sum(ld .* F_b)
     
     if pflag
@@ -906,10 +808,10 @@ function F(ld::Array{T,1}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
     F_theta[3] = Fq_phi * phi_theta
         
     if ld[2] == 0.0
-        Fl = 0.0
-        Fl_phi = 0.0
-        Fl_r = 0.0
-        Fl_b = 0.0        
+        Fl = zero(T)
+        Fl_phi = zero(T)
+        Fl_r = zero(T)
+        Fl_b = zero(T)
     else          
         if bpr > 1.0
         
@@ -937,10 +839,10 @@ function F(ld::Array{T,1}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
                 d_b = r * sphi * o3 * ox
                 
                 Fl_phi = (r2 - br * cphi) * o3 * ox
-                pr = 0.0
-                pb = 0.0
+                pr = zero(T)
+                pb = zero(T)
                 
-                o = 1.0
+                o = one(T)
                 ellippi = cel((sqomm), 1.0 - n, (o), (o))
                 ellipe  = cel((sqomm), (o), (o), (1.0 - m))
                 ellipf  = cel((sqomm), (o), (o), (o))
@@ -965,7 +867,7 @@ function F(ld::Array{T,1}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
                                         
                 tans = 1.0 / sqrt(m / (sphihalf * sphihalf) - 1.0)
                 
-                o = 1.0
+                o = one(T)
                 ellippi = el3((tans), (sqomm), 1.0 - n)
                 ellipe = el2((tans), (sqomm), (o), (1.0 - m))
                 ellipf = el2((tans), (sqomm), (o), (o))
@@ -1010,14 +912,14 @@ function F(ld::Array{T,1}, phi::T, r::T, b::T, phi_rp::T, phi_rm::T,
             d_r = o9 * b * sphi * (-3.0 * ox + 2 * (r2 - br * cphi) * oy - 2 * y)
             d_b = o9 * r * (3.0 * ox + 2 * (b2 - br * cphi) * oy - 2 * y) * sphi
              
-            o = 1.0
+            o = one(T)
             ellipe = el2((tphihalf), (sqomm), (o), (1.0 - m))
             ellipf = el2((tphihalf), (sqomm), (o), (o))
             
             if b == r
                 Fl_phi = o3 * (1.0 - y^3) * (r2 - br * cphi) * ox
-                ellippi = 0.0
-                gamma = 0.0
+                ellippi = zero(T)
+                gamma = zero(T)
             else
                 Fl_phi = o3 * (1.0 - y ^3) * (r2 - br * cphi) * ox
                 ellippi = el3((tphihalf), (sqomm), (1.0 - n))
