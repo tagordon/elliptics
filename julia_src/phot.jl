@@ -687,7 +687,7 @@ function Fcomplete(ld::Array{T,1}, r::T, b::T, dbm::Array{T,1}, pflag::Bool) whe
         eplusf_r = ur * ellipe
         eplusf_b = ub * ellipe + vb * ellipf
             
-        F_[2] = eplusf + gamma * ellippi + pisixth * (1.0 - sgn)
+        F_[2] = eplusf + gamma * ellippi + pi/6 * (1.0 - sgn)
         F_r[2] = eplusf_r
         F_b[2] = eplusf_b
     end
